@@ -1,0 +1,45 @@
+#根据配置创建仿真环境，描述方块的位置等
+#基础单方块场景
+
+<mujoco model="Scene">
+    <include file="panda.xml"/>                                            #引入Panda机械臂 地面 方块 前方相机 方块传感器
+
+    <option timestep=".002" noslip_iterations="5" noslip_tolerance="0"/>   #物理计算每次推进2毫秒
+
+    <statistic center="0.3 0 0.4" extent=".8"/>                            #主要影响模型在查看器中的默认显示范围
+
+    <visual>                                                               #设置灯光，视角和离屏图像尺寸
+      <headlight diffuse=".4 .4 .4" ambient=".5 .5 .5"/>
+      <global azimuth="160" elevation="-20" offheight="128" offwidth="128"/>
+      <quality offsamples="8"/>
+    </visual>
+
+    <asset>                                                                #定义天空，地面纹理和材质
+      <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0" width="32" height="512"/>
+      <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
+      <!-- <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1="0 0 0" rgb2="0 0 0"/> -->
+      <material name="grid" texture="grid" texrepeat="2 2" texuniform="true" reflectance="0"/>
+    </asset>
+
+    <worldbody>                                                            #藐视下面开始定义仿真世界中的实体
+      #相机名字，在世界中的位置，相机朝向，相机视野宽度
+      <camera name="front" pos="1.3 0.0 0.7" quat="0.5963678 0.3799282 0.3799282 0.5963678" fovy="45"/>
+      <light pos="0 0 3" dir="0 0 -1" diffuse="1 1 1" specular=".3 .3 .3"/>
+      <light pos="0 -.5 .4" mode="targetbodycom" target="block" diffuse=".8 .8 .8" specular=".3 .3 .3"/>
+      
+      #定义地面名字， ，平面，使用前面定义的网格材质
+      <geom name="floor" size="3 3 0.01" type="plane" material="grid"/>
+      <body name="block" pos="0.5 0 .02">                                  #方块
+        <freejoint name="block"/>                                          #给方块添加自由关节，可以在空中自由移动和旋转，若没有则会固定在此不动
+        <geom name="block" type="box" size=".02 .02 .02" mass="0.1" rgba=".6 .3 .6 1"/> #定义实体，形状是方块， 0.1千克，颜色和透明度
+      </body>
+      <body name="target" pos=".15 0 .5" quat="0 1 0 0" mocap="true">      #定义一个target的目标物体 为机械臂末端的期望目标位置 mocap为程序可以直接修改这个目标的位置和姿态
+        <geom name="target" type="box" size=".03 .03 .03" contype="0" conaffinity="0" rgba=".6 .3 .3 0"/> #这个目标不参与碰撞，且完全透明
+      </body>
+    </worldbody>
+
+    <sensor>  #方块传感器，
+      <framepos name="block_pos" objtype="geom" objname="block"/>          #block_pos传感器 用于读取block的三维位置
+      <framequat name="block_quat" objtype="geom" objname="block"/>        # ，读取方块的姿态，返回四元数表示方向朝向
+    </sensor>
+  </mujoco>
