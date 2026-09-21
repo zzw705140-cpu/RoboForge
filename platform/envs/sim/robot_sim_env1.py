@@ -89,6 +89,12 @@ class RobotSimEnv(gym.Env):
         self.model = mujoco.MjModel.from_xml_path(str(self.xml_path))
         self.data = mujoco.MjData(self.model)
 
+        # 将观测字段名映射到 MuJoCo 相机 ID，供 _get_images() 逐路渲染。
+        self._camera_ids = {
+            key: self.model.camera(name).id
+            for key, name in zip(self.config.camera_keys, self.config.camera_names)
+        }
+
         # 查找XML文件内各个配件的id并组成数组
         # 7个关节的id  7各关节下角标的id
         self._joint_ids     = np.asarray( [self.model.joint(f"joint{i}").id for i in range(1, 8)] )
@@ -340,9 +346,24 @@ class RobotSimEnv(gym.Env):
         return pose
 
     def _get_images(self) -> dict[str, np.ndarray]:
-        """获取相机图像，后续按需实现。"""
+        """从 Mujoco 中获取各个相机当前画面，作为策略视觉观测"""
 
-        return {}
+        # 只在第一次调用 get_images() 时创建渲染器, 整个环境运行期间复用同一个渲染器即可，不应每帧重新创建
+        if self._renderer is None:
+            height, width = self.config.image_size
+            # 按照图像尺寸 (128×128) 为 mujoco 创建离屏渲染器 Renderer (将 mujoco 中三维场景转化为二维相机图像)
+            self._renderer = mujoco.Renderer(self.model, height=int(height), width=int(width))
+
+        # 依次渲染每个相机画面，并将数据按照 {"front": [128, 128, 3] 图像} 存入 images
+        images: dict[str, np.ndarray] = {}
+        for key, camera_id in self._camera_ids.items():
+            # 根据 Mujoco 状态，将渲染视角切换到指定相机
+            self._renderer.update_scene(self.data, camera=camera_id)
+            # render() 渲染当前相机图像，将图像保存为独立 uint8 数组。必须 copy()，因为 renderer 可能重复使用同一块内存；不复制的话，先前保存的相机画面可能被下一次渲染覆盖
+            images[key] = np.asarray(self._renderer.render(), dtype=np.uint8).copy()
+
+        return images
+
 
     def _get_robot_state(self) -> dict[str, np.ndarray]:
         """读取 TCP 位姿和速度。"""

@@ -25,7 +25,9 @@ from envs.wrappers.relative_frame_wrapper import RelativeFrameWrapper
 # 任务的底层环境配置
 class EnvConfig(RobotSimEnvConfig):
 
-    max_episode_length = 100
+    use_images = True
+    # 环境频率 10 Hz，因此 150 步对应人工演示最长 15 秒。
+    max_episode_length = 150
 
     # 方块随机出现范围
     block_xy_low  = np.asarray([0.3, -0.15], dtype=np.float64)
@@ -174,8 +176,8 @@ class TrainConfig(DefaultConfig):
     observation_horizon = 1             # 规定算法能够接收1帧       /4帧则是将最近4帧作为输入
     gripper_penalty = None              # 当前实验仅使用稀疏任务奖励，暂时不对夹爪开合施加额外惩罚
 
-    # actor 默认使用 SpaceMouse；本地键盘测试可以在实例上改为 keyboard
-    input_device = "spacemouse"         #默认使用spacemouse
+    # 默认使用键盘；仍可在运行参数中显式改为 SpaceMouse 或手柄。
+    input_device = "keyboard"
     show_viewer = True                  #运行环境时默认打开Mijoco可视化窗口
 
 ################################

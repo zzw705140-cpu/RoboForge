@@ -1,7 +1,7 @@
 """ Test the spacemouse output. """
 import time
 import numpy as np
-from robot_infra.spacemouse.spacemouse_expert import SpaceMouseExpert
+from .spacemouse_expert import SpaceMouseExpert
 
 
 def test_spacemouse():

@@ -2,3 +2,11 @@
 __pycache__/
 *.pyc
 .venv/
+.resnet_params/
+checkpoints/
+datasets/
+roboforg/data/act_data/
+roboforg/data/diffusion_data/
+wandb/
+*.ckpt
+*.pkl

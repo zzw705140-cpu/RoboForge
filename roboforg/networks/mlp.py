@@ -40,5 +40,5 @@ class MLP(nn.Module):
 
                 # 添加激活函数  
                 x = activations(x)
-
+ 
         return x

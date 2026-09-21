@@ -44,7 +44,7 @@ def _run_keyboard_episode(env: InterventionWrapper) -> str:
     control_period = 1.0 / env.unwrapped.config.hz
 
     print("Press Space to enable intervention, then use the movement keys.")
-    print("Press Enter for success or ESC for failure to end the test.")
+    print("Press m for success or ESC for failure to end the test.")
 
     while True:
         step_start = time.perf_counter()

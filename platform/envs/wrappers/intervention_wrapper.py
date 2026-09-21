@@ -46,7 +46,7 @@ class InterventionWrapper(gym.Wrapper):
         self,
         env: gym.Env,
         *,
-        input_device: InputDevice = "spacemouse",
+        input_device: InputDevice = "keyboard",
         intervention_threshold:   float = 1e-3,             # 判断 spacemouse 是否真的发生人工操作
         translation_action_scale: float = 1.0,              # 缩放 “平移部分”
         rotation_action_scale:    float = 1.0,              # 缩放 “旋转部分”

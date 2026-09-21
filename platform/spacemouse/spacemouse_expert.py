@@ -1,7 +1,10 @@
 import multiprocessing
-import numpy as np
-from robot_infra.spacemouse import pyspacemouse
 from typing import Tuple
+
+import numpy as np
+
+# RoboForge 将原项目的 robot_infra 重命名为 platform；使用包内相对导入。
+from . import pyspacemouse
 
 
 class SpaceMouseExpert:

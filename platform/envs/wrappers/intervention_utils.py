@@ -193,7 +193,7 @@ class KeyboardController(InputController):
                 elif key == keyboard.Key.alt_l:
                     self.close_gripper_command = True
                 # Special control keys
-                elif key == keyboard.Key.enter:
+                elif key == keyboard.KeyCode.from_char("m"):
                     self.key_states["success"] = True
                     self.episode_end_status = "success"
                 elif key == keyboard.Key.esc:
@@ -203,6 +203,7 @@ class KeyboardController(InputController):
                     self.key_states["intervention"] = not self.key_states["intervention"]
                 elif key == keyboard.Key.r:
                     self.key_states["rerecord"] = True
+                    self.episode_end_status = "rerecord_episode"
             except AttributeError:
                 pass
 
@@ -239,10 +240,10 @@ class KeyboardController(InputController):
         # print("  Right Ctrl and Left Ctrl: Open and close gripper")
         print("  Left Alt: Close gripper")
         print("  Right Alt: Open gripper")
-        print("  Enter: End episode with SUCCESS")
-        print("  Backspace: End episode with FAILURE")
+        print("  m: End episode with SUCCESS")
         print("  Space: Start/Stop Intervention")
         print("  ESC: End episode with FAILURE")
+        print("  r: Discard the current episode")
 
     # 停止键盘监听线程
     def stop(self):
@@ -272,7 +273,7 @@ class KeyboardController(InputController):
 
     # 判断是否按下了成功或失败按键
     def should_save(self):
-        """Return True if Enter was pressed (save episode)."""
+        """Return True if the success or failure key ended this episode."""
         return self.key_states["success"] or self.key_states["failure"]
 
     # 返回 Space 控制的人工接管状态
