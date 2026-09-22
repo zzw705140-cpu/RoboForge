@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 from pathlib import Path
 import sys
 from typing import Any
@@ -17,9 +18,10 @@ PLATFORM_ROOT = PROJECT_ROOT / "platform"
 if str(PLATFORM_ROOT) not in sys.path:
     sys.path.insert(0, str(PLATFORM_ROOT))
 
-from examples.sim_pick.config import TrainConfig
 from roboforg.agent.act import ActionEnsemble
 from roboforg.workflows.act.common import (
+    HEADLESS_NUM_ROLLOUTS,
+    VIEWER_NUM_ROLLOUTS,
     create_act_agent,
     load_checkpoint_into_agent,
     read_checkpoint_setup,
@@ -52,6 +54,11 @@ def batch_observation(
 # 创建无人工干预的 Pick 仿真环境；是否显示 MuJoCo 窗口由运行参数决定。
 def make_evaluation_environment(*, show_viewer: bool):
     """Build the visual Pick environment used for autonomous ACT rollouts."""
+    # 必须在导入 MuJoCo 前选择后端；服务器离屏图像仍需要渲染。
+    if not show_viewer:
+        os.environ.setdefault("MUJOCO_GL", "egl")
+    from examples.sim_pick.config import TrainConfig
+
     env_config = TrainConfig()
     env_config.show_viewer = show_viewer
     env_config.input_device = None
@@ -115,18 +122,66 @@ def run_rollout(
     }
 
 
+def evaluate_policy(
+    agent, *, num_rollouts: int | None = None, show_viewer: bool = False,
+    seed: int = 0, max_steps: int | None = None, query_every: int = 1, env=None,
+) -> dict[str, float | int] | None:
+    """顺序执行完整回合；离屏返回指标，开屏仅观察。调用者传入的环境由调用者关闭。"""
+    if num_rollouts is None:
+        num_rollouts = VIEWER_NUM_ROLLOUTS if show_viewer else HEADLESS_NUM_ROLLOUTS
+    if num_rollouts <= 0 or not 1 <= query_every <= agent.policy.action_horizon:
+        raise ValueError("num_rollouts must be positive; query_every must be within action_horizon.")
+    if max_steps is not None and max_steps <= 0:
+        raise ValueError("max_steps must be positive.")
+    owns_env = env is None
+    if owns_env:
+        env = make_evaluation_environment(show_viewer=show_viewer)
+    try:
+        # 默认沿用任务的超时限制，避免在任务结束前人为截短回合。
+        episode_limit = env.unwrapped.config.max_episode_length if max_steps is None else max_steps
+        ensemble = ActionEnsemble(agent.policy.action_horizon, action_dim=agent.policy.action_dim, decay=0.01)
+        results = []
+        for index in range(num_rollouts):
+            result = run_rollout(
+                env=env, agent=agent, ensemble=ensemble, seed=seed + index,
+                max_steps=episode_limit, query_every=query_every,
+            )
+            if show_viewer:
+                print(f"Observation {index + 1}/{num_rollouts}: steps={result['steps']}", flush=True)
+            else:
+                results.append(result)
+                print(f"Rollout {index + 1}/{num_rollouts}: success={result['success']}, steps={result['steps']}", flush=True)
+        if show_viewer:
+            return None
+        successes = sum(int(result["success"]) for result in results)
+        metrics = {
+            "success_rate": successes / num_rollouts,
+            "successes": successes,
+            "num_rollouts": num_rollouts,
+            "mean_steps": float(np.mean([result["steps"] for result in results])),
+            "mean_return": float(np.mean([result["return"] for result in results])),
+        }
+        print(f"ACT rollout summary: {metrics}", flush=True)
+        return metrics
+    finally:
+        if owns_env:
+            env.close()
+
+
 # 解析 checkpoint、运行回合数、可视化与动作查询频率等部署参数。
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments for autonomous ACT Pick rollouts."""
     parser = argparse.ArgumentParser(description="Run a RoboForge ACT checkpoint in the Pick simulator.")
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--num-rollouts", type=int, default=10)
-    parser.add_argument("--max-steps", type=int, default=150)
+    parser.add_argument("--num-rollouts", type=int, help="Episode count; defaults to 40 headless or 10 with viewer.")
+    parser.add_argument("--max-steps", type=int, help="Optional override of the environment episode limit.")
     parser.add_argument("--query-every", type=int, default=1)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--show-viewer", action="store_true")
     args = parser.parse_args()
-    if args.num_rollouts <= 0 or args.max_steps <= 0 or args.query_every <= 0:
+    if args.num_rollouts is None:
+        args.num_rollouts = VIEWER_NUM_ROLLOUTS if args.show_viewer else HEADLESS_NUM_ROLLOUTS
+    if args.num_rollouts <= 0 or (args.max_steps is not None and args.max_steps <= 0) or args.query_every <= 0:
         parser.error("--num-rollouts, --max-steps, and --query-every must be positive.")
     return args
 
@@ -157,33 +212,10 @@ def main() -> None:
             load_pretrained_backbone=False,
         )
         agent, _ = load_checkpoint_into_agent(args.checkpoint, agent)
-        ensemble = ActionEnsemble(
-            config.action_horizon, action_dim=config.action_dim, decay=0.01
-        )
-
-        results = []
-        for rollout_index in range(args.num_rollouts):
-            result = run_rollout(
-                env=env,
-                agent=agent,
-                ensemble=ensemble,
-                seed=args.seed + rollout_index,
-                max_steps=args.max_steps,
-                query_every=args.query_every,
-            )
-            results.append(result)
-            print(
-                f"rollout={rollout_index} success={result['success']} steps={result['steps']} "
-                f"return={result['return']:.3f} clipped_steps={result['clipped_steps']}"
-            )
-
-        success_rate = float(np.mean([result["success"] for result in results]))
-        mean_steps = float(np.mean([result["steps"] for result in results]))
-        mean_return = float(np.mean([result["return"] for result in results]))
-        print(
-            f"ACT rollout summary: checkpoint_epoch={metadata['epoch']}, "
-            f"success_rate={success_rate:.3f}, mean_steps={mean_steps:.1f}, "
-            f"mean_return={mean_return:.3f}"
+        print(f"Loaded {args.checkpoint}, completed_epochs={metadata['epoch'] + 1}.", flush=True)
+        evaluate_policy(
+            agent, env=env, num_rollouts=args.num_rollouts, show_viewer=args.show_viewer,
+            seed=args.seed, max_steps=args.max_steps, query_every=args.query_every,
         )
     finally:
         env.close()

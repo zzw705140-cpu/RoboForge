@@ -20,6 +20,15 @@ from roboforg.model.resnet_loader import load_resnet10_into_policy_state
 from roboforg.networks.vision.resnet_v1 import resnetv1_configs
 
 
+# 工作流默认参数；训练与手动仿真共用。
+DEFAULT_NUM_EPOCHS = 1000
+CHECKPOINT_EVERY_EPOCHS = 200
+CHECKPOINT_KEEP_LAST = 5
+ROLLOUT_EVERY_EPOCHS = 500  # 仿真成功率评估间隔，不是离线 eval loss 的间隔
+HEADLESS_NUM_ROLLOUTS = 40
+VIEWER_NUM_ROLLOUTS = 10
+
+
 # 集中保存 ACT workflow 的网络、数据和优化器超参数；训练、评估、执行使用同一份配置。
 @dataclass(frozen=True)
 class ACTWorkflowConfig:

@@ -60,7 +60,7 @@ class ACTTrainingLogger:
         try:
             # 用显式训练步数作横轴；W&B 内部提交步数自增，避免同一步的 batch/epoch 日志冲突。
             logger.run.define_metric("train_step")
-            for pattern in ("train/*", "epoch_train/*", "eval/*", "progress/*"):
+            for pattern in ("train/*", "epoch_train/*", "eval/*", "progress/*", "rollout/*"):
                 logger.run.define_metric(pattern, step_metric="train_step")
             if not debug:
                 identity = {"id": logger.run.id, "project": logger.run.project,
@@ -94,6 +94,14 @@ class ACTTrainingLogger:
             elif key == "best_eval_loss":
                 data["progress"][key] = float(value)
         self.logger.log(data)
+
+    def log_rollout(self, metrics, *, step, epoch):
+        """成功率写入当前训练实验；同时记录完成的 epoch 和累计更新次数。"""
+        if self.logger is not None:
+            self.logger.log({
+                "train_step": step,
+                "rollout": {**metrics, "epoch": epoch + 1},
+            })
 
     # 完成上传并释放 run；重复调用不会重复关闭。
     def finish(self):

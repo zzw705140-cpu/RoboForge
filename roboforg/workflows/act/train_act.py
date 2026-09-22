@@ -12,6 +12,11 @@ import jax
 
 from roboforg.workflows.act.common import (
     ACTWorkflowConfig,
+    DEFAULT_NUM_EPOCHS,
+    CHECKPOINT_EVERY_EPOCHS,
+    CHECKPOINT_KEEP_LAST,
+    ROLLOUT_EVERY_EPOCHS,
+    HEADLESS_NUM_ROLLOUTS,
     create_act_agent,
     fit_train_normalizer,
     load_checkpoint_into_agent,
@@ -24,6 +29,17 @@ from roboforg.workflows.act.common import (
 )
 from roboforg.data.act_data.data_conversion import ACTBatchConverter
 from roboforg.workflows.act.training_logger import ACTTrainingLogger
+from roboforg.workflows.act.checkpoint_paths import numbered_checkpoints
+
+
+def save_training_checkpoint(directory, *, agent, epoch, config, metrics):
+    """保存独立的完整训练状态；成功写入后只保留最近五份编号 checkpoint。"""
+    path = directory / f"epoch_{epoch + 1:04d}.ckpt"
+    save_checkpoint(path, agent=agent, epoch=epoch, config=config, metrics=metrics)
+    print(f"Saved checkpoint: {path}", flush=True)
+    for old_path in numbered_checkpoints(directory)[:-CHECKPOINT_KEEP_LAST]:
+        old_path.unlink()
+        print(f"Removed expired checkpoint: {old_path}", flush=True)
 
 
 # 遍历一次 buffer 的全部合法 chunk 样本；training=True 时才更新 Agent 参数。
@@ -90,14 +106,14 @@ def build_config(
     return replace(base, **updates)
 
 
-# 解析训练所需的路径、超参数和恢复选项；默认训练四轮。
+# 解析训练所需的路径、超参数和恢复选项；默认训练 1000 轮。
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments for ACT training."""
     parser = argparse.ArgumentParser(description="Train RoboForge ACT on Pick demonstrations.")
     parser.add_argument("--dataset-root", type=Path, help="Dataset root; defaults to datasets for a new run.")
     parser.add_argument("--checkpoint-dir", type=Path, default=Path("checkpoints/act"))
     parser.add_argument("--resume", type=Path, help="Resume parameters and optimizer state from this checkpoint.")
-    parser.add_argument("--num-epochs", type=int, default=4, help="Number of additional epochs to train.")
+    parser.add_argument("--num-epochs", type=int, default=DEFAULT_NUM_EPOCHS, help="Number of additional epochs to train.")
     parser.add_argument("--batch-size", type=int, help="Batch size; checkpoint value is reused on resume.")
     parser.add_argument("--action-horizon", type=int, help="Chunk length; must match the checkpoint on resume.")
     parser.add_argument("--learning-rate", type=float, help="Main-network learning rate.")
@@ -135,7 +151,7 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-# 训练总调度：新训练加载预训练 ResNet；恢复训练加载完整 checkpoint，再按 epoch 保存 latest/best。
+# 训练总调度：定期保存完整 checkpoint，并用当前模型进行离屏仿真评估。
 def main() -> None:
     """Run the complete ACT train/eval/checkpoint loop."""
     args = parse_args()
@@ -169,17 +185,11 @@ def main() -> None:
         load_pretrained_backbone=not args.no_pretrained_backbone and args.resume is None,
     )
     start_epoch = 0
-    best_eval_loss = float("inf")
 
     # 恢复时保留 checkpoint 的 normalizer、网络权重和 AdamW 状态；采样顺序从当前 seed 重新开始。
     if args.resume is not None:
         agent, metadata = load_checkpoint_into_agent(args.resume, agent)
         start_epoch = metadata["epoch"] + 1
-        best_eval_loss = float(
-            metadata["metrics"].get(
-                "best_eval_loss", metadata["metrics"].get("eval_loss", float("inf"))
-            )
-        )
         print(f"Resumed {args.resume} after completed epoch {metadata['epoch']}.")
 
     print(
@@ -210,7 +220,7 @@ def main() -> None:
             )
             summary: dict[str, Any] = {f"train_{key}": value for key, value in train_metrics.items()}
 
-            # 每隔 eval_every 轮检查未见轨迹；best checkpoint 只由 eval total loss 决定。
+            # 离线验证损失仍按原来的频率记录，与仿真成功率分开。
             if (epoch + 1) % args.eval_every == 0:
                 agent, eval_metrics, rng, eval_batches = run_epoch(
                     agent=agent,
@@ -221,30 +231,25 @@ def main() -> None:
                     max_batches=args.max_eval_batches,
                 )
                 summary.update({f"eval_{key}": value for key, value in eval_metrics.items()})
-                if eval_metrics["loss"] < best_eval_loss:
-                    best_eval_loss = eval_metrics["loss"]
-                    save_checkpoint(
-                        args.checkpoint_dir / "best.ckpt",
-                        agent=agent,
-                        epoch=epoch,
-                        config=config,
-                        metrics=summary,
-                    )
-                    print(f"Saved new best checkpoint (eval_loss={best_eval_loss:.6f}).")
             else:
                 eval_batches = 0
 
-            # 即使本轮未做 eval，也把历史最优值存入 latest，恢复训练时不会误覆盖原有 best.ckpt。
-            summary["best_eval_loss"] = best_eval_loss
+            completed_epochs = epoch + 1
+            is_final_epoch = completed_epochs == start_epoch + args.num_epochs
+            if completed_epochs % CHECKPOINT_EVERY_EPOCHS == 0 or is_final_epoch:
+                save_training_checkpoint(
+                    args.checkpoint_dir, agent=agent, epoch=epoch, config=config, metrics=summary,
+                )
 
-            # 无论 eval 是否运行都保存 latest，便于在服务器中断后恢复本次训练进度。
-            save_checkpoint(
-                args.checkpoint_dir / "latest.ckpt",
-                agent=agent,
-                epoch=epoch,
-                config=config,
-                metrics=summary,
-            )
+            # 同一个条件合并周期与末轮触发，末轮恰好到周期时不会重复测评。
+            if completed_epochs % ROLLOUT_EVERY_EPOCHS == 0 or is_final_epoch:
+                from roboforg.workflows.act.run_act import evaluate_policy
+
+                print(f"Evaluating policy after epoch {completed_epochs} ({HEADLESS_NUM_ROLLOUTS} episodes).", flush=True)
+                rollout_metrics = evaluate_policy(
+                    agent, num_rollouts=HEADLESS_NUM_ROLLOUTS, show_viewer=False, seed=args.seed,
+                )
+                logger.log_rollout(rollout_metrics, step=int(agent.policy_state.step), epoch=epoch)
             elapsed = time.perf_counter() - epoch_start
             logger.log_epoch(
                 summary, step=int(agent.policy_state.step), epoch=epoch,
@@ -252,7 +257,7 @@ def main() -> None:
             )
             metric_text = ", ".join(f"{key}={value:.6f}" for key, value in sorted(summary.items()))
             print(
-                f"epoch={epoch} train_batches={train_batches} eval_batches={eval_batches} "
+                f"epoch={completed_epochs} train_batches={train_batches} eval_batches={eval_batches} "
                 f"seconds={elapsed:.2f} {metric_text}"
             )
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# ACT 统一训练入口：new 新建实验，resume 从该实验的 latest.ckpt 继续训练。
+# ACT 统一训练入口：new 新建实验，resume 从该实验最新保存的 checkpoint 继续训练。
 
 set -euo pipefail
 
@@ -9,8 +9,7 @@ cd "$PROJECT_ROOT"
 ##############################################################################
 # 训练配置：需要调整参数时，只修改这一段。
 ##############################################################################
-NUM_EPOCHS=4                 # 本次训练轮数；resume 时表示额外增加的轮数
-INITIAL_EPOCHS=4             # 实验名称中的 ep 标签，创建实验后不要修改
+NUM_EPOCHS=1000              # 本次训练轮数；resume 时表示额外增加的轮数，可由命令行覆盖
 BATCH_SIZE=32                # 每个 batch 的样本数
 ACTION_HORIZON=4             # 每次预测的连续动作步数
 LEARNING_RATE=1e-4           # Transformer、CVAE 等主网络学习率
@@ -27,12 +26,12 @@ WANDB_LOG_EVERY=10
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 
 ##############################################################################
-# 启动参数：第一个参数为 new/resume，第二个参数为正整数 run 编号。
+# 启动参数：new/resume、正整数 run 编号，以及可选的 --num-epochs N。
 ##############################################################################
 MODE="${1:-}"
 RUN_INDEX="${2:-}"
 if [[ "$MODE" != "new" && "$MODE" != "resume" ]]; then
-  echo "Usage: bash roboforg/workflows/act/train_act.sh {new|resume} RUN_INDEX" >&2
+  echo "Usage: bash roboforg/workflows/act/train_act.sh {new|resume} RUN_INDEX [--num-epochs N]" >&2
   exit 2
 fi
 if [[ ! "$RUN_INDEX" =~ ^[1-9][0-9]*$ ]]; then
@@ -40,10 +39,28 @@ if [[ ! "$RUN_INDEX" =~ ^[1-9][0-9]*$ ]]; then
   exit 2
 fi
 
-# W&B 名称包含关键参数；checkpoint 目录不含 ep，保证追加轮数后路径保持不变。
-RUN_NAME="act_k${ACTION_HORIZON}_b${BATCH_SIZE}_ep${INITIAL_EPOCHS}_run${RUN_INDEX}"
+shift 2
+while [[ "$#" -gt 0 ]]; do
+  case "$1" in
+    --num-epochs)
+      if [[ "$#" -lt 2 || ! "$2" =~ ^[1-9][0-9]*$ ]]; then
+        echo "--num-epochs must be followed by a positive integer." >&2
+        exit 2
+      fi
+      NUM_EPOCHS="$2"
+      shift 2
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      echo "Usage: bash roboforg/workflows/act/train_act.sh {new|resume} RUN_INDEX [--num-epochs N]" >&2
+      exit 2
+      ;;
+  esac
+done
+
+# W&B 名称仅包含固定实验配置；本次追加的 epoch 数由命令与日志记录。
+RUN_NAME="act_k${ACTION_HORIZON}_b${BATCH_SIZE}_run${RUN_INDEX}"
 CHECKPOINT_DIR="checkpoints/act/act_k${ACTION_HORIZON}_b${BATCH_SIZE}_run${RUN_INDEX}"
-LATEST_CHECKPOINT="${CHECKPOINT_DIR}/latest.ckpt"
 RESUME_ARGS=()
 
 if [[ "$MODE" == "new" ]]; then
@@ -53,11 +70,8 @@ if [[ "$MODE" == "new" ]]; then
     exit 1
   fi
 else
-  # 恢复实验必须存在完整的 latest.ckpt；它包含权重、优化器和已完成 epoch。
-  if [[ ! -f "$LATEST_CHECKPOINT" ]]; then
-    echo "Resume failed: checkpoint not found: ${LATEST_CHECKPOINT}" >&2
-    exit 1
-  fi
+  # 按 epoch 数选择最近的完整训练状态，并兼容旧 latest.ckpt。
+  LATEST_CHECKPOINT="$(python roboforg/workflows/act/checkpoint_paths.py --directory "$CHECKPOINT_DIR")"
   RESUME_ARGS+=(--resume="$LATEST_CHECKPOINT")
 fi
 
@@ -81,7 +95,12 @@ python -m roboforg.workflows.act.train_act \
   "${RESUME_ARGS[@]}"
 
 
+# 训练命令
 # conda activate gym_hil
 # cd ~/project/RoboForge
-# bash roboforg/workflows/act/train_act.sh new 1
-# bash roboforg/workflows/act/train_act.sh resume 1
+# bash roboforg/workflows/act/train_act.sh new 1 --num-epochs 1000
+# bash roboforg/workflows/act/train_act.sh resume 1 --num-epochs 20
+
+# 测评命令
+# bash roboforg/workflows/act/test_act.sh --run 1 --num-rollouts 40
+# bash roboforg/workflows/act/test_act.sh --run 1 --num-rollouts 10 --show-viewer
