@@ -1,0 +1,5 @@
+Metadata-Version: 2.4
+Name: roboforge
+Version: 0.1.0
+Summary: RoboForge robot learning and ACT workflows
+Requires-Python: >=3.10
