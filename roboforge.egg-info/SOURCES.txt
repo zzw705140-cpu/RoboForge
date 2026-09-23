@@ -58,6 +58,7 @@ roboforg/tests/test_action_projection.py
 roboforg/tests/test_chunk_bc_buffer.py
 roboforg/tests/test_data.py
 roboforg/tests/view_demo_trajectory.py
+roboforg/utils/checkpoint_untils.py
 roboforg/utils/wandb.py
 roboforg/workflows/__init__.py
 roboforg/workflows/act/__init__.py
@@ -68,6 +69,9 @@ roboforg/workflows/act/run_act.py
 roboforg/workflows/act/smoke_act.py
 roboforg/workflows/act/train_act.py
 roboforg/workflows/act/training_logger.py
+roboforg/workflows/act_1/__init__.py
+roboforg/workflows/act_1/eval_act.py
+roboforg/workflows/act_1/train_act.py
 roboforg/workflows/collect_data/__init__.py
 roboforg/workflows/collect_data/collect_data.py
 roboforg/workflows/collect_data/test.py

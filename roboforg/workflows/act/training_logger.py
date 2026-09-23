@@ -5,6 +5,9 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
+#######################################
+#             管理wandb               #
+#######################################
 
 # 管理 ACT 的配置、指标和实验 ID；未启用时所有记录调用均为空操作。
 class ACTTrainingLogger:
