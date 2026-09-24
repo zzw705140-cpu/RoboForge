@@ -1,15 +1,25 @@
 #!/usr/bin/env bash
-# 独立评估 ACT checkpoint：可在下方指定某个 epoch 文件；留空则选择最新运行的最新文件。
+# 独立测评 ACT checkpoint：关屏统计成功率，开屏只观察动作。
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 CHECKPOINT_PATH=""
-NUM_EPISODES=40
+SHOW_VIEWER=false                 # true：本地开屏观察；false：关屏统计成功率
 SEED=0
 
-export MUJOCO_GL=egl
+# 开屏默认观察 10 回合；关屏默认统计 40 回合。
+if [[ "$SHOW_VIEWER" == "true" ]]; then
+  NUM_EPISODES=10
+  unset MUJOCO_GL
+elif [[ "$SHOW_VIEWER" == "false" ]]; then
+  NUM_EPISODES=40
+  export MUJOCO_GL=egl
+else
+  echo "SHOW_VIEWER must be true or false" >&2
+  exit 2
+fi
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 
 if [[ -z "$CHECKPOINT_PATH" ]]; then
@@ -25,7 +35,8 @@ fi
 python -m roboforg.workflows.act_1.eval_act \
   --checkpoint="$CHECKPOINT_PATH" \
   --num-episodes="$NUM_EPISODES" \
-  --seed="$SEED"
+  --seed="$SEED" \
+  --show-viewer="$SHOW_VIEWER"
 
 
 # conda activate gym_hil
@@ -34,4 +45,7 @@ python -m roboforg.workflows.act_1.eval_act \
 
 # python -m roboforg.workflows.act_1.eval_act \
 #   --checkpoint="checkpoints/act/<运行目录>/epoch_0500.ckpt" \
-#   --num-episodes=40
+#   --show-viewer=true \
+#   --num-episodes=40 \
+#   --print-policy-output true
+

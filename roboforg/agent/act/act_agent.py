@@ -17,6 +17,27 @@ from roboforg.agent.act.data_normalizer import DataNormalizer
 from roboforg.agent.act.latent_encoder import LatentEncoder, kl_loss
 
 
+@partial(jax.jit, static_argnames=("policy", "latent_dim"))
+def _compiled_predict(
+    policy: ACTPolicy,
+    policy_params: Any,
+    state: jax.Array,
+    images: Mapping[str, jax.Array],
+    state_mean: jax.Array,
+    state_std: jax.Array,
+    action_mean: jax.Array,
+    action_std: jax.Array,
+    latent_dim: int,
+) -> jax.Array:
+    """Compile the complete inference forward pass as one reusable JAX graph."""
+    normalized_state = (state - state_mean) / state_std
+    zero_z = jnp.zeros((state.shape[0], latent_dim), dtype=jnp.float32)
+    normalized_actions = policy.apply(
+        {"params": policy_params}, normalized_state, images, zero_z, train=False
+    )
+    return normalized_actions * action_std + action_mean
+
+
 # 从 ACT 格式 batch 中取出 state、双相机图像和动作，并做基本形状检查。
 def _unpack_batch(
     batch: Mapping[str, Any] | tuple[Mapping[str, Any], Any], *, camera_keys: tuple[str, ...], action_horizon: int, action_dim: int
@@ -308,13 +329,16 @@ class ACTAgent:
             missing = [key for key in self.policy.camera_keys if key not in images]
             raise KeyError(f"observations is missing cameras: {missing}.")
 
-        # z=0 是标准正态先验均值；推理输出恢复到 RoboForge 的原始七维动作尺度。
-        zero_z = jnp.zeros((state.shape[0], self.latent_encoder.latent_dim), dtype=jnp.float32)
-        normalized_actions = self.policy.apply(
-            {"params": self.policy_state.params},
-            self.normalizer.normalize_state(state),
+        # z=0 是标准正态先验均值；整段视觉-Transformer-动作前向以单个 JIT 图执行。
+        # 统计量作为动态数组输入，避免缓存键依赖含 NumPy 数组的 normalizer。
+        return _compiled_predict(
+            self.policy,
+            self.policy_state.params,
+            state,
             images,
-            zero_z,
-            train=False,
+            jnp.asarray(self.normalizer.state_mean),
+            jnp.asarray(self.normalizer.state_std),
+            jnp.asarray(self.normalizer.action_mean),
+            jnp.asarray(self.normalizer.action_std),
+            self.latent_encoder.latent_dim,
         )
-        return self.normalizer.denormalize_action(normalized_actions)

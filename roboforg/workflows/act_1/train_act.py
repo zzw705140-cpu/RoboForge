@@ -42,6 +42,10 @@ def parse_args() -> argparse.Namespace:
     # 数据与 ACT 模型参数。
     parser.add_argument("--dataset-root", type=Path, default=PROJECT_ROOT / "datasets")
     parser.add_argument("--task-name", default="pick")
+    parser.add_argument("--train-dir-name", default="train",
+                        help="Training data folder under datasets/pick (for example train_1).")
+    parser.add_argument("--eval-dir-name", default="eval",
+                        help="Offline evaluation data folder under datasets/pick (for example eval_1).")
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--action-horizon", type=int, default=4)
@@ -84,6 +88,8 @@ def build_config(args: argparse.Namespace) -> ACTWorkflowConfig:
         ACTWorkflowConfig(),
         dataset_root=args.dataset_root.expanduser().resolve(),
         task_name=args.task_name,
+        train_dir_name=args.train_dir_name,
+        eval_dir_name=args.eval_dir_name,
         batch_size=args.batch_size,
         action_horizon=args.action_horizon,
         learning_rate=args.learning_rate,

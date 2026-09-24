@@ -1,4 +1,4 @@
-# ACT 离屏仿真评估：可加载指定 checkpoint，也可由训练循环传入当前模型。
+# ACT 仿真测评：离屏统计成功率，或在本地开屏观察指定 checkpoint 的动作。
 from __future__ import annotations
 
 import argparse
@@ -38,19 +38,28 @@ def _batch_observation(observation: dict[str, Any], camera_keys: tuple[str, ...]
     return result
 
 
-# 离屏评估开始时创建无人工干预的 Pick 环境。
-def _make_environment():
-    os.environ.setdefault("MUJOCO_GL", "egl")
+# 训练中测评或独立测评开始时调用：按开关创建无人工干预的 Pick 环境。
+def _make_environment(*, show_viewer: bool = False):
+    if show_viewer:
+        os.environ.pop("MUJOCO_GL", None)
+    else:
+        os.environ.setdefault("MUJOCO_GL", "egl")
     from examples.sim_pick.config import TrainConfig
 
     env_config = TrainConfig()
-    env_config.show_viewer = False
+    env_config.show_viewer = show_viewer
     env_config.input_device = None
     return env_config.get_environment(fake_env=False, save_video=False, classifier=False)
 
 
 # 执行一个完整回合：每步重新预测动作块，用 Temporal Ensemble 融合后执行。
-def _run_episode(agent: Any, env: Any, *, seed: int) -> dict[str, float | bool]:
+def _run_episode(
+    agent: Any,
+    env: Any,
+    *,
+    seed: int,
+    print_policy_output: bool = False,
+) -> dict[str, float | bool]:
     from envs.wrappers.action_utils import project_action_to_unit_balls
 
     observation, _ = env.reset(seed=seed)
@@ -71,6 +80,11 @@ def _run_episode(agent: Any, env: Any, *, seed: int) -> dict[str, float | bool]:
         ensemble.add_prediction(step, action_chunk)
         action = ensemble.get_action(step)
         safe_action = project_action_to_unit_balls(np.clip(action, env.action_space.low, env.action_space.high))
+        if print_policy_output:
+            print(
+                f"Policy output step={step + 1}: {np.array2string(safe_action, precision=6, separator=', ')}",
+                flush=True,
+            )
         if not np.array_equal(safe_action, action):
             clipped_steps += 1
         observation, reward, terminated, truncated, info = env.step(safe_action)
@@ -110,13 +124,43 @@ def evaluate_policy(agent: Any, *, num_episodes: int, seed: int, env: Any = None
             env.close()
 
 
-# 独立测评入口：接收训练保存的某一个明确 checkpoint 路径。
+# 独立测评开屏时调用：逐回合观察动作，不汇总或输出成功率。
+def observe_policy(
+    agent: Any,
+    *,
+    num_episodes: int,
+    seed: int,
+    env: Any,
+    print_policy_output: bool = True,
+) -> None:
+    if num_episodes <= 0:
+        raise ValueError("num_episodes must be positive")
+    for index in range(num_episodes):
+        result = _run_episode(
+            agent,
+            env,
+            seed=seed + index,
+            print_policy_output=print_policy_output,
+        )
+        print(f"Observation {index + 1}/{num_episodes}: steps={result['steps']}", flush=True)
+
+
+# 独立测评启动时调用：接收 checkpoint 路径和是否开屏的选择。
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate a saved ACT checkpoint in the Pick simulator")
     parser.add_argument("--checkpoint", type=Path, required=True)
-    parser.add_argument("--num-episodes", type=int, default=40)
+    parser.add_argument("--num-episodes", type=int)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--show-viewer", choices=("true", "false"), default="false")
+    parser.add_argument(
+        "--print-policy-output",
+        choices=("true", "false"),
+        default="false",              # 测评时间，是否打印出策略输出
+        help="Print each action sent to the simulator during open-viewer observation.",
+    )
     args = parser.parse_args()
+    if args.num_episodes is None:
+        args.num_episodes = 1 if args.show_viewer == "true" else 40
     if args.num_episodes <= 0:
         parser.error("--num-episodes must be positive")
     if args.seed < 0:
@@ -124,12 +168,13 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-# 独立测评：用 checkpoint 的配置与标准化器创建模型，加载权重后运行仿真。
+# 独立测评启动时调用：加载 checkpoint；开屏观察或离屏统计成功率。
 def main() -> None:
     args = parse_args()
     checkpoint = args.checkpoint.expanduser().resolve()
     config, normalizer, metadata = read_checkpoint_setup(checkpoint)
-    env = _make_environment()
+    show_viewer = args.show_viewer == "true"
+    env = _make_environment(show_viewer=show_viewer)
     try:
         observation, _ = env.reset(seed=args.seed)
         example_batch = (
@@ -144,9 +189,18 @@ def main() -> None:
             load_pretrained_backbone=False,
         )
         agent, _ = load_checkpoint_into_agent(checkpoint, agent)
-        results = evaluate_policy(agent, num_episodes=args.num_episodes, seed=args.seed, env=env)
-        print(f"Checkpoint: {checkpoint}; completed_epochs={metadata['epoch'] + 1}; "
-              f"metrics={results}", flush=True)
+        print(f"Checkpoint: {checkpoint}; completed_epochs={metadata['epoch'] + 1}", flush=True)
+        if show_viewer:
+            observe_policy(
+                agent,
+                num_episodes=args.num_episodes,
+                seed=args.seed,
+                env=env,
+                print_policy_output=args.print_policy_output == "true",
+            )
+        else:
+            results = evaluate_policy(agent, num_episodes=args.num_episodes, seed=args.seed, env=env)
+            print(f"Evaluation metrics: {results}", flush=True)
     finally:
         env.close()
 

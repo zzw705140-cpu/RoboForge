@@ -71,6 +71,24 @@ def _update_held_gripper(hold_action: np.ndarray, executed_action: np.ndarray, t
         hold_action[6] = -1.0
 
 
+def _is_first_effective_action(
+    executed_action: np.ndarray,
+    held_gripper_target: float | None,
+    motion_threshold: float,
+    gripper_threshold: float,
+) -> bool:
+    """Detect the first arm command or a change of the gripper target."""
+    arm_moved = bool(np.linalg.norm(executed_action[:6]) > motion_threshold)
+    gripper_changed = False
+    if held_gripper_target is not None and executed_action.shape == (7,):
+        new_target = float(executed_action[6])
+        gripper_changed = bool(
+            (new_target > gripper_threshold and held_gripper_target < 0.0)
+            or (new_target < -gripper_threshold and held_gripper_target > 0.0)
+        )
+    return arm_moved or gripper_changed
+
+
 def _finalize_trajectory(
     observations: list[dict[str, np.ndarray]],
     actions: list[np.ndarray],
@@ -92,7 +110,7 @@ def _finalize_trajectory(
 
 
 def collect_demonstrations(
-    env, *, successes_needed: int, seed: int | None
+    env, *, successes_needed: int, seed: int | None, start_motion_threshold: float = 1e-6
 ) -> tuple[list[dict[str, Any]], dict[str, int], bool]:
     """Collect one complete batch; interrupted batches are deliberately discarded."""
     trajectories: list[dict[str, Any]] = []
@@ -102,37 +120,54 @@ def collect_demonstrations(
     observation, _ = env.reset(seed=seed)
     hold_action = _hold_action(env)
     control_dt = 1.0 / float(env.unwrapped.config.hz)
+    gripper_threshold = float(env.unwrapped.config.gripper_threshold)
 
     try:
         while len(trajectories) < successes_needed:
             # 本 episode 暂存。只在成功且未作废时才加入 trajectories。
-            episode_observations = [_copy_tree(observation)]
+            episode_observations: list[dict[str, np.ndarray]] = []
             episode_actions: list[np.ndarray] = []
             episode_rewards: list[np.float32] = []
             episode_masks: list[np.float32] = []
             episode_dones: list[np.bool_] = []
             episode_return = 0.0
+            waiting_steps = 0
+            recording_started = False
             next_deadline = time.monotonic() + control_dt
 
             while True:
                 # Wrapper 在人工接管时把真正执行的动作放入 info；否则执行保持动作。
+                held_gripper_target = float(hold_action[6]) if hold_action.shape == (7,) else None
                 next_observation, reward, terminated, truncated, info = env.step(hold_action)
+                if "is_takeover_active" not in info:
+                    raise RuntimeError("Collection requires InterventionWrapper to report is_takeover_active.")
                 executed_action = np.asarray(
                     info.get("intervene_action", hold_action), dtype=env.action_space.dtype
                 ).copy()
-                _update_held_gripper(
-                    hold_action,
-                    executed_action,
-                    float(env.unwrapped.config.gripper_threshold),
-                )
+                _update_held_gripper(hold_action, executed_action, gripper_threshold)
 
-                # 对每个动作只追加一次下一帧观测，避免 next_observations 的重复存储。
+                # 接管开关打开并首次执行有效动作时，从该动作执行前的观测开始录制。
+                # 单独按空格/RB、或夹爪持续保持原目标，都不会触发录制。
+                if not recording_started:
+                    recording_started = bool(info["is_takeover_active"]) and _is_first_effective_action(
+                        executed_action,
+                        held_gripper_target,
+                        start_motion_threshold,
+                        gripper_threshold,
+                    )
+                    if recording_started:
+                        episode_observations.append(_copy_tree(observation))
+                    else:
+                        waiting_steps += 1
+
+                # 开始后连续保存，包括操作过程中的停顿；保持 T 个动作对应 T+1 帧观测。
                 done = bool(terminated or truncated)
-                episode_actions.append(executed_action)
-                episode_rewards.append(np.float32(reward))
-                episode_masks.append(np.float32(1.0 - float(terminated)))
-                episode_dones.append(np.bool_(done))
-                episode_observations.append(_copy_tree(next_observation))
+                if recording_started:
+                    episode_actions.append(executed_action)
+                    episode_rewards.append(np.float32(reward))
+                    episode_masks.append(np.float32(1.0 - float(terminated)))
+                    episode_dones.append(np.bool_(done))
+                    episode_observations.append(_copy_tree(next_observation))
                 episode_return += float(reward)
                 total_steps += 1
                 observation = next_observation
@@ -162,7 +197,7 @@ def collect_demonstrations(
                 rerecord = bool(info.get("rerecord_episode", False))
                 episode_steps = len(episode_actions)
                 # 失败回合、超时回合、以及按 r 标记作废的回合均不写入数据集。
-                if is_success and not rerecord:
+                if is_success and not rerecord and recording_started:
                     trajectories.append(
                         _finalize_trajectory(
                             episode_observations,
@@ -175,7 +210,7 @@ def collect_demonstrations(
 
                 print(
                     f"attempt={attempted_episodes}, saved={len(trajectories)}/{successes_needed}, "
-                    f"steps={episode_steps}, return={episode_return:.3f}, "
+                    f"steps={episode_steps}, waiting_steps={waiting_steps}, return={episode_return:.3f}, "
                     f"is_success={is_success}, rerecord_episode={rerecord}"
                 )
                 break
@@ -196,10 +231,11 @@ def collect_demonstrations(
     }, collection_complete
 
 
-def _save_dataset(*, trajectories: list[dict[str, Any]], statistics: dict[str, int], split: str, output_root: Path) -> Path:
+def _save_dataset(*, trajectories: list[dict[str, Any]], statistics: dict[str, int],
+                  split: str, output_root: Path, output_dir_name: str) -> Path:
     """Write a single session file shared by future ACT and Diffusion Policy loaders."""
     # train/eval 仅通过目录隔离；二者的数据格式完全相同，可供 ACT 和 DP 共用。
-    output_dir = output_root / "pick" / split
+    output_dir = output_root / "pick" / output_dir_name
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     output_path = output_dir / f"pick_{len(trajectories)}_demos_{timestamp}.pkl"
@@ -220,12 +256,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Collect successful human Pick demonstrations.")
     parser.add_argument("--successes-needed", type=int, default=10, help="Successful trajectories to put in this one file.")
     parser.add_argument("--split", choices=("train", "eval"), default="train")
+    parser.add_argument("--output-dir-name", type=str,
+                        help="Folder under datasets/pick; defaults to the split name.")
     parser.add_argument("--input-device", choices=("keyboard", "gamepad", "spacemouse"), default="keyboard")
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--start-motion-threshold", type=float, default=1e-6,
+                        help="Minimum six-axis command norm that starts recording after takeover.")
     parser.add_argument("--output-root", type=Path, default=PROJECT_ROOT / "datasets")
     args = parser.parse_args()
     if args.successes_needed <= 0:
         parser.error("--successes-needed must be positive.")
+    if not np.isfinite(args.start_motion_threshold) or args.start_motion_threshold < 0.0:
+        parser.error("--start-motion-threshold must be finite and non-negative.")
+    output_dir_name = args.output_dir_name or args.split
+    if output_dir_name in {".", ".."} or Path(output_dir_name).name != output_dir_name:
+        parser.error("--output-dir-name must name one folder under datasets/pick.")
 
     # 收集阶段始终使用可视化窗口和人工输入设备，不创建 fake_env。
     config = TrainConfig()
@@ -234,7 +279,8 @@ def main() -> None:
     env = config.get_environment(fake_env=False, save_video=False, classifier=False)
     try:
         trajectories, statistics, collection_complete = collect_demonstrations(
-            env, successes_needed=args.successes_needed, seed=args.seed
+            env, successes_needed=args.successes_needed, seed=args.seed,
+            start_motion_threshold=args.start_motion_threshold,
         )
     finally:
         env.close()
@@ -251,6 +297,7 @@ def main() -> None:
         statistics=statistics,
         split=args.split,
         output_root=args.output_root,
+        output_dir_name=output_dir_name,
     )
     print("statistics:", statistics)
     print("saved:", output_path)

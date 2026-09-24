@@ -36,6 +36,8 @@ class ACTWorkflowConfig:
 
     dataset_root: Path = Path("datasets")              # 数据集根目录
     task_name: str = "pick"                            # 当前任务名称
+    train_dir_name: str = "train"                       # datasets/pick 下的训练数据目录名
+    eval_dir_name: str = "eval"                         # datasets/pick 下的离线评估数据目录名
     camera_keys: tuple[str, ...] = ("front", "wrist")  # 使用的相机顺序
     image_height: int = 128                            # 网络输入图像高度
     image_width: int = 128                             # 网络输入图像宽度
@@ -61,6 +63,11 @@ class ACTWorkflowConfig:
     def __post_init__(self) -> None:
         if self.task_name != "pick":
             raise ValueError("This first ACT workflow currently supports only task_name='pick'.")
+        for directory_name in (self.train_dir_name, self.eval_dir_name):
+            if not directory_name or directory_name in {".", ".."} or Path(directory_name).name != directory_name:
+                raise ValueError("Train and eval directory names must be single folders under the task directory.")
+        if self.train_dir_name == self.eval_dir_name:
+            raise ValueError("Train and eval data directories must be different.")
         if not self.camera_keys or len(set(self.camera_keys)) != len(self.camera_keys):
             raise ValueError("camera_keys must be non-empty and contain no duplicates.")
         if self.image_height <= 0 or self.image_width <= 0:
@@ -87,7 +94,8 @@ class ACTWorkflowConfig:
         """Return the local directory containing one dataset split."""
         if split not in {"train", "eval"}:
             raise ValueError("split must be 'train' or 'eval'.")
-        return Path(self.dataset_root) / self.task_name / split
+        directory_name = self.train_dir_name if split == "train" else self.eval_dir_name
+        return Path(self.dataset_root) / self.task_name / directory_name
 
 
 # 读取一个 split 下的全部采集批次，并合并成完整轨迹列表；不修改原始 pkl 文件。

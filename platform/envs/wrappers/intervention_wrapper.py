@@ -135,8 +135,8 @@ class InterventionWrapper(gym.Wrapper):
             self._gripper_target = (OPEN_GRIPPER_TARGET if float(target) < 0.0 else CLOSED_GRIPPER_TARGET)
 
     # 读取人工输入并返回接管状态、标准动作和人工指定的回合状态
-    def _read_human_input(self) -> tuple[bool, np.ndarray, str | None]:
-        """读取当前设备, 并返回接管状态、7 维动作和 episode 状态"""
+    def _read_human_input(self) -> tuple[bool, bool, np.ndarray, str | None]:
+        """返回是否执行人工动作、显式接管状态、动作和 episode 状态。"""
 
         if self.input_device == "spacemouse":
             # 从 SpaceMouse 获取六维人工动作，如 [dx, dy, dz, dRx, dRy, dRz]
@@ -213,10 +213,12 @@ class InterventionWrapper(gym.Wrapper):
         # SpaceMouse 以投影且过滤后的六维运动判断是否接管；键盘/手柄保留其显式接管开关语义。持续的夹爪目标本身不算接管，只有本步按钮命令才算
         if self.input_device == "spacemouse":
             intervened = bool(np.linalg.norm(action[:6]) > self.intervention_threshold or gripper_commanded)
+            takeover_active = intervened
         else:
             intervened = bool(controller_intervened or gripper_commanded)
+            takeover_active = controller_intervened
 
-        return intervened, action, episode_status
+        return intervened, takeover_active, action, episode_status
 
     # 接管时执行人工动作，否则执行策略动作，再调用底层环境的 step
     def step(self, action: np.ndarray):
@@ -228,7 +230,7 @@ class InterventionWrapper(gym.Wrapper):
             raise ValueError(f"action must have shape {self.action_space.shape}, got {policy_action.shape}")
 
         # 读取人工动作
-        intervened, human_action, episode_status = self._read_human_input()
+        intervened, takeover_active, human_action, episode_status = self._read_human_input()
 
         # 如果人工干预，则执行动作采用人工
         executed_action = human_action if intervened else policy_action
@@ -245,6 +247,8 @@ class InterventionWrapper(gym.Wrapper):
         else:
             info.pop("intervene_action", None)
         info["is_intervention"] = intervened
+        # 单独的夹爪按钮也会触发 is_intervention；此字段仅表示键盘空格/手柄 RB 的显式接管。
+        info["is_takeover_active"] = takeover_active
 
         # 判断操作人是否按下: success，failure，rerecord_episode（当前轨迹作废，重新录制）
         manual_end = episode_status in ("success", "failure", "rerecord_episode")
