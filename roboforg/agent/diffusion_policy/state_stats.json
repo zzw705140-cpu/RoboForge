@@ -1,0 +1,212 @@
+{
+  "split": "train_1",
+  "episodes": 150,
+  "frames": 6946,
+  "sources": [
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-05-02.pkl",
+      "sha256": "42f83312bcf3e69cad9c28763b35bdbaa241da22fcf0841a347a093df45db6ee"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-28-53.pkl",
+      "sha256": "90ff3d58662ba7dbaef24574040c50d6496809dddfa76c735c51463b918914ba"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-29-51.pkl",
+      "sha256": "dc43a495de74c67b8d44e1cd97fa5b041dd668435c4136ae422bae0d0ca56852"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-31-50.pkl",
+      "sha256": "a915d1be0f71a9d06170af7e168eda4cf5ce2eb788dbe94f495dda9b97dee1f9"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-33-17.pkl",
+      "sha256": "021e3f8235d369c1bebce413640483c39c7c0ff6bbedc42b858f870a64639802"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-34-21.pkl",
+      "sha256": "02e04a743a01e7a6dfdecf471ce14f22e64de74c16ab4d8c1f275bf4f2005529"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-36-00.pkl",
+      "sha256": "303dd8a0b034dfd614567e73862bf8e1e95c0688effafc0d3ec8a17188807742"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-36-58.pkl",
+      "sha256": "a2ce9dae80d51b876c1d1c753d779431dc7900b655099103e933aaf0f1f19e73"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-38-13.pkl",
+      "sha256": "fcb126523b351fe952aa2ff69047a000390b3e4c03fb70c7f5915177f852ab9f"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-39-11.pkl",
+      "sha256": "3f4c9efa2b3dbc9e6f7f7d7146ad27d62b725cf2ba11181f0ffe3d6f567baaed"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-05-22.pkl",
+      "sha256": "5768305ec40e18394c6e2f13cfdcb2ca4a311a0627bcfcb4e6ebdf021438821f"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-06-36.pkl",
+      "sha256": "580a240efcb87bf5600d04b3da0adbcccad9af9e25cd8069f998f83f79563794"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-07-36.pkl",
+      "sha256": "ac051150a5ec8bfb0edb55608b75416d53c36f84a6e358cbdaaecc5a39ae291a"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-08-30.pkl",
+      "sha256": "c37f1a406afb2703fe0b75df3aec7d5246ec6fb776eeec9839ebbdeaf8cac552"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-09-16.pkl",
+      "sha256": "ac3a152e1318f66cf04b5333832ae381a8a3039620793d7b17a0fc49e100e308"
+    }
+  ],
+  "frame_selection": "observations[:len(actions)]; no terminal frames, sampling or padding",
+  "state_layout": [
+    [
+      "gripper_pose",
+      1
+    ],
+    [
+      "gripper_target",
+      1
+    ],
+    [
+      "tcp_force",
+      3
+    ],
+    [
+      "tcp_pose",
+      9
+    ],
+    [
+      "tcp_torque",
+      3
+    ],
+    [
+      "tcp_vel",
+      6
+    ]
+  ],
+  "representation": {
+    "position": "reset initial TCP frame",
+    "rotation": "rotation[:, :2].flatten() row-major",
+    "velocity": "current TCP frame; linear then angular"
+  },
+  "range_indices": [
+    5,
+    6,
+    7,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22
+  ],
+  "range_eps": 1e-07,
+  "constant_range_indices": [],
+  "state_min": [
+    2.0216881239321083e-05,
+    -1.0,
+    0.0,
+    0.0,
+    0.0,
+    -0.20756706595420837,
+    -0.1819482296705246,
+    -0.06855601817369461,
+    0.9950997233390808,
+    -0.09110123664140701,
+    -0.07337974011898041,
+    0.9957993626594543,
+    -0.0976763591170311,
+    -0.016966136172413826,
+    0.0,
+    0.0,
+    0.0,
+    -0.09979209303855896,
+    -0.10682527720928192,
+    -0.11107473820447922,
+    -0.06058552488684654,
+    -0.05386938899755478,
+    -0.05103365704417229
+  ],
+  "state_max": [
+    0.9986106753349304,
+    1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.05071102827787399,
+    0.20261114835739136,
+    0.07405565679073334,
+    1.0,
+    0.07328636944293976,
+    0.09091778099536896,
+    1.0,
+    0.05551273748278618,
+    0.013630448840558529,
+    0.0,
+    0.0,
+    0.0,
+    0.10181841999292374,
+    0.10434450954198837,
+    0.09977656602859497,
+    0.04838313162326813,
+    0.20731902122497559,
+    0.05802875757217407
+  ],
+  "state_scale": [
+    2.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    7.743591286541123,
+    5.2007573193412435,
+    14.02409725921013,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    1.0,
+    9.92011760660362,
+    9.471051852487458,
+    9.485357500038074,
+    18.35390160852682,
+    7.6573076052494695,
+    18.33812323920654
+  ],
+  "state_offset": [
+    -1.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.6073145232959145,
+    -0.05373141279983762,
+    -0.038563733427929514,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    -0.01005070084836468,
+    0.01174773960545572,
+    0.0535836010926225,
+    0.11198076267413426,
+    -0.5875055179388817,
+    -0.06413850777656771
+  ]
+}

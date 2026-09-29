@@ -1,0 +1,98 @@
+{
+  "pixel_space": "2 * (uint8 / 255) - 1",
+  "frame_selection": "observations[:len(actions)]; no terminal frames, sampling or padding",
+  "split": "train_1", 
+  "episodes": 150,
+  "sources": [
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-05-02.pkl",
+      "sha256": "42f83312bcf3e69cad9c28763b35bdbaa241da22fcf0841a347a093df45db6ee"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-28-53.pkl",
+      "sha256": "90ff3d58662ba7dbaef24574040c50d6496809dddfa76c735c51463b918914ba"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-29-51.pkl",
+      "sha256": "dc43a495de74c67b8d44e1cd97fa5b041dd668435c4136ae422bae0d0ca56852"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-31-50.pkl",
+      "sha256": "a915d1be0f71a9d06170af7e168eda4cf5ce2eb788dbe94f495dda9b97dee1f9"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-33-17.pkl",
+      "sha256": "021e3f8235d369c1bebce413640483c39c7c0ff6bbedc42b858f870a64639802"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-34-21.pkl",
+      "sha256": "02e04a743a01e7a6dfdecf471ce14f22e64de74c16ab4d8c1f275bf4f2005529"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-36-00.pkl",
+      "sha256": "303dd8a0b034dfd614567e73862bf8e1e95c0688effafc0d3ec8a17188807742"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-36-58.pkl",
+      "sha256": "a2ce9dae80d51b876c1d1c753d779431dc7900b655099103e933aaf0f1f19e73"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-38-13.pkl",
+      "sha256": "fcb126523b351fe952aa2ff69047a000390b3e4c03fb70c7f5915177f852ab9f"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_21-39-11.pkl",
+      "sha256": "3f4c9efa2b3dbc9e6f7f7d7146ad27d62b725cf2ba11181f0ffe3d6f567baaed"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-05-22.pkl",
+      "sha256": "5768305ec40e18394c6e2f13cfdcb2ca4a311a0627bcfcb4e6ebdf021438821f"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-06-36.pkl",
+      "sha256": "580a240efcb87bf5600d04b3da0adbcccad9af9e25cd8069f998f83f79563794"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-07-36.pkl",
+      "sha256": "ac051150a5ec8bfb0edb55608b75416d53c36f84a6e358cbdaaecc5a39ae291a"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-08-30.pkl",
+      "sha256": "c37f1a406afb2703fe0b75df3aec7d5246ec6fb776eeec9839ebbdeaf8cac552"
+    },
+    {
+      "path": "datasets/pick/train_1/pick_10_demos_2026-09-24_22-09-16.pkl",
+      "sha256": "ac3a152e1318f66cf04b5333832ae381a8a3039620793d7b17a0fc49e100e308"
+    }
+  ],
+  "images": {
+    "front": {
+      "mean": [
+        -0.4517272850319374,
+        -0.22143470469221682,
+        0.012024086292173507
+      ],
+      "std": [
+        0.44423544402112647,
+        0.39942767897105846,
+        0.3894179903259721
+      ],
+      "frames": 6946,
+      "pixels_per_channel": 113803264
+    },
+    "wrist": {
+      "mean": [
+        -0.47524715022289415,
+        -0.23951338661620528,
+        0.08708677025188502
+      ],
+      "std": [
+        0.34136187028078857,
+        0.28083135004553406,
+        0.3944816446303591
+      ],
+      "frames": 6946,
+      "pixels_per_channel": 113803264
+    }
+  }
+}

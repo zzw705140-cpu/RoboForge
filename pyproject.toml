@@ -11,3 +11,6 @@ requires-python = ">=3.10"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["roboforg*", "examples*", "platform*"]
+
+[tool.setuptools.package-data]
+"roboforg.agent.diffusion_policy" = ["image_stats.json", "state_stats.json"]
