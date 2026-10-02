@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from functools import partial
 
 import flax.linen as nn
 import jax
@@ -10,6 +11,31 @@ import jax.numpy as jnp
 from roboforg.agent.diffusion_policy.data_normalizer import DataNormalizer
 from roboforg.agent.diffusion_policy.noise_scheduler import DiffusionScheduler
 from roboforg.networks.diffusion_policy import DiffusionUNet, ObservationEncoder
+
+
+# 将观测编码、DDIM scan、反归一化和动作截取统一编译
+@partial(jax.jit, static_argnames=("policy", "num_inference_steps"))
+def _compiled_predict(
+    policy: "DiffusionPolicy",
+    params,
+    observations: Mapping[str, jax.Array],
+    rng: jax.Array,
+    num_inference_steps: int | None,
+) -> dict[str, jax.Array]:
+    """Compile the complete diffusion-policy inference path once and reuse it."""
+    normalized_sequence = policy.sample_action_sequence(
+        params,
+        observations,
+        rng,
+        num_inference_steps,
+    )
+    action_prediction = policy.normalizer.denormalize_action(normalized_sequence)
+    start = policy.n_obs_steps - 1
+    end = start + policy.n_action_steps
+    return {
+        "action": action_prediction[:, start:end],
+        "action_pred": action_prediction,
+    }
 
 
 # ============================================================================
@@ -261,13 +287,11 @@ class DiffusionPolicy:
                        rng: jax.Array,
                        num_inference_steps: int | None = None
                        ) -> dict[str, jax.Array]:
-        # 生成并反归一化动作
-
-        # 通过多次去噪生成归一化空间中的完整动作序列
-        normalized_sequence = self.sample_action_sequence(params, observations, rng, num_inference_steps)
-        # 将动作反归一化
-        action_prediction = self.normalizer.denormalize_action(normalized_sequence)
-        # 将最新观测对应的位置作为执行起点，跳过序列中与历史观测对应的动作位置
-        start = self.n_obs_steps - 1
-        end = start + self.n_action_steps
-        return {"action": action_prediction[:, start:end], "action_pred": action_prediction}
+        # 将观测编码、完整 DDIM scan、反归一化和动作截取作为一个稳定的 JIT 图复用。
+        return _compiled_predict(
+            self,
+            params,
+            observations,
+            rng,
+            num_inference_steps,
+        )

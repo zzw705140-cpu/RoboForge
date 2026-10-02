@@ -114,6 +114,37 @@ class DataNormalizer:
         # 逆变换后由环境处理夹爪的 ±0.5 阈值及持续开合目标。
         return (action - self.action_offset) / self.action_scale
 
+    # 将训练期使用的全部统计量保存进 checkpoint，评估时不再依赖外部 JSON。
+    def to_dict(self) -> dict:
+        return {
+            "action_scale": np.asarray(self.action_scale),
+            "action_offset": np.asarray(self.action_offset),
+            "state_scale": np.asarray(self.state_scale),
+            "state_offset": np.asarray(self.state_offset),
+            "image_stats": {
+                key: {"mean": np.asarray(mean), "std": np.asarray(std)}
+                for key, (mean, std) in self.image_stats.items()
+            },
+        }
+
+    # 从 checkpoint 恢复与训练完全一致的数值变换。
+    @classmethod
+    def from_dict(cls, values: dict) -> "DataNormalizer":
+        normalizer = cls(
+            action_scale=values["action_scale"],
+            action_offset=values["action_offset"],
+        )
+        normalizer.state_scale = jnp.asarray(values["state_scale"], dtype=jnp.float32)
+        normalizer.state_offset = jnp.asarray(values["state_offset"], dtype=jnp.float32)
+        normalizer.image_stats = {
+            key: (
+                jnp.asarray(entry["mean"], dtype=jnp.float32),
+                jnp.asarray(entry["std"], dtype=jnp.float32),
+            )
+            for key, entry in values["image_stats"].items()
+        }
+        return normalizer
+
     # ------------------------------------------------------------------------
     # 图像处理：先转换像素范围，再使用该相机训练集统计量进行标准化
     # ------------------------------------------------------------------------
