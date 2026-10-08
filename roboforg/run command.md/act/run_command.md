@@ -4,10 +4,10 @@ conda activate gym_hil
 cd ~/project/RoboForge
 
 python -m roboforg.workflows.act_1.eval_act \
-  --checkpoint="checkpoints/act/pick__act__20260924_232506/epoch_0200.ckpt" \
+  --checkpoint="checkpoints/act/pick__act__20260925_115405/epoch_0700.ckpt" \
   --show-viewer=true \
   --num-episodes=10 \
-  --print-policy-output=true
+  --print-policy-output=false
 
 
 

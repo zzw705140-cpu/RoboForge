@@ -27,7 +27,7 @@ class EnvConfig(RobotSimEnvConfig):
 
     use_images = True
     # 环境频率 10 Hz，因此 150 步对应人工演示最长 15 秒。
-    max_episode_length = 150
+    max_episode_length = 300
 
     # 方块随机出现范围
     block_xy_low  = np.asarray([0.3, -0.15], dtype=np.float64)
