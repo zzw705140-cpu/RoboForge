@@ -76,7 +76,7 @@ class RobotSimEnv(gym.Env):
 
         # 根据当前文件位置生成默认 MuJoCo 场景 XML 路径。
         if xml_path is None:
-            xml_path = Path(__file__).resolve().parent / "simulation" / "assets" / "scene.xml"
+            xml_path = Path(__file__).resolve().parents[2] / "assets" / "scene.xml"
         self.xml_path = Path(xml_path).resolve()
         self._initialize_mujoco()
 

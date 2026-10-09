@@ -1,0 +1,188 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mujoco model="roboforge_pick_place">
+    <!-- ===== 来源：robosuite master 的 bins_arena.xml 与四组物体/visual XML；许可证见 pick_place_resources ===== -->
+    <!-- ===== 布局适配：箱体 x/y 尺寸缩放至 70%/50%，降低至地面；物体尺寸与接触参数保留原版；移除高台装饰腿 ===== -->
+  
+  
+    <include file="panda.xml" />
+    <option timestep="0.002" noslip_iterations="5" noslip_tolerance="0" />
+    <statistic center="0.35 0 0.2" extent="0.9" />
+    <visual>
+        <global azimuth="160" elevation="-35" offheight="128" offwidth="128" />
+        <headlight diffuse="0.6 0.6 0.6" ambient="0.4 0.4 0.4" />
+    </visual>
+    <asset>
+
+
+        <!-- ===== arenas/bins_arena.xml 的资源 ===== -->
+        <texture builtin="gradient" height="256" rgb1=".9 .9 1." rgb2=".2 .3 .4" type="skybox" width="256" />
+        <texture file="pick_place_resources/textures/light-gray-floor-tile.png" type="2d" name="pp_texplane" />
+        <material name="pp_floorplane" reflectance="0.01" shininess="0.0" specular="0.0" texrepeat="2 2" texture="pp_texplane" texuniform="true" />
+        <texture file="pick_place_resources/textures/steel-brushed.png" type="cube" name="pp_tex-steel-brushed" />
+        <material name="pp_table_legs_metal" reflectance="0.8" shininess="0.8" texrepeat="1 1" texture="pp_tex-steel-brushed" />
+        <texture file="pick_place_resources/textures/light-gray-plaster.png" type="2d" name="pp_tex-light-gray-plaster" />
+        <material name="pp_walls_mat" reflectance="0.0" shininess="0.1" specular="0.1" texrepeat="3 3" texture="pp_tex-light-gray-plaster" texuniform="true" />
+        <texture file="pick_place_resources/textures/light-wood.png" type="2d" name="pp_tex-light-wood" />
+        <texture file="pick_place_resources/textures/dark-wood.png" type="2d" name="pp_tex-dark-wood" />
+        <material name="pp_light-wood" reflectance="0" texrepeat="15 15" texture="pp_tex-light-wood" texuniform="true" />
+        <material name="pp_dark-wood" reflectance="0" texrepeat="5 5" texture="pp_tex-dark-wood" texuniform="true" />
+        <!-- ===== objects/milk.xml 的资源 ===== -->
+        <mesh file="pick_place_resources/objects/meshes/milk.msh" name="pp_milk_milk_mesh" scale="0.9 0.9 0.9" />
+        <texture file="pick_place_resources/textures/ceramic.png" name="pp_milk_tex-ceramic" type="2d" />
+        <material name="pp_milk_ceramic" reflectance="0.5" texrepeat="1 1" texture="pp_milk_tex-ceramic" texuniform="true" />
+        <!-- ===== objects/milk-visual.xml 的资源 ===== -->
+        <mesh file="pick_place_resources/objects/meshes/milk.stl" name="pp_milk_visual_milk_mesh" scale="0.9 0.9 0.9" />
+        <!-- ===== objects/bread.xml 的资源 ===== -->
+        <mesh file="pick_place_resources/objects/meshes/bread.stl" name="pp_bread_bread_mesh" scale="0.8 0.8 0.8" />
+        <texture file="pick_place_resources/textures/bread.png" type="2d" name="pp_bread_tex-bread" />
+        <material name="pp_bread_bread" reflectance="0.7" texrepeat="15 15" texture="pp_bread_tex-bread" texuniform="true" />
+        <!-- ===== objects/bread-visual.xml 的资源 ===== -->
+        <mesh file="pick_place_resources/objects/meshes/bread.stl" name="pp_bread_visual_bread_mesh" scale="0.8 0.8 0.8" />
+        <!-- ===== objects/cereal.xml 的资源 ===== -->
+        <mesh file="pick_place_resources/objects/meshes/cereal.msh" name="pp_cereal_cereal_mesh" />
+        <texture type="2d" file="pick_place_resources/textures/cereal.png" rgb1="1 1 1" name="pp_cereal_tex-cereal" />
+        <material name="pp_cereal_cereal" reflectance="0.5" texrepeat="1 1" texture="pp_cereal_tex-cereal" texuniform="false" />
+        <!-- ===== objects/cereal-visual.xml 的资源 ===== -->
+        <mesh file="pick_place_resources/objects/meshes/cereal.stl" name="pp_cereal_visual_cereal_mesh" />
+        <!-- ===== objects/can.xml 的资源 ===== -->
+        <mesh file="pick_place_resources/objects/meshes/can.msh" name="pp_can_can_mesh" />
+        <texture file="pick_place_resources/textures/soda.png" name="pp_can_tex-can" type="2d" />
+        <material name="pp_can_coke" reflectance="0.7" texrepeat="5 5" texture="pp_can_tex-can" texuniform="true" />
+        <!-- ===== objects/can-visual.xml 的资源 ===== -->
+        <mesh file="pick_place_resources/objects/meshes/can.stl" name="pp_can_visual_can_mesh" />
+    </asset>
+    <worldbody>
+
+
+        <!-- ===== 01 原版箱体场景：bin1 初始箱，bin2 四格目标箱；保留背景墙 ===== -->
+        <geom condim="3" group="1" material="pp_floorplane" name="pp_floor" pos="0 0 0" size="3 3 .125" type="plane" />
+        <geom pos="-1.25 2.25 1.5" quat="0.6532815 0.6532815 0.2705981 0.2705981" size="1.06 1.5 0.01" type="box" conaffinity="0" contype="0" group="1" name="pp_wall_leftcorner_visual" material="pp_walls_mat" />
+        <geom pos="-1.25 -2.25 1.5" quat="0.6532815 0.6532815 -0.2705981 -0.2705981" size="1.06 1.5 0.01" type="box" conaffinity="0" contype="0" group="1" name="pp_wall_rightcorner_visual" material="pp_walls_mat" />
+        <geom pos="1.25 3 1.5" quat="0.7071 0.7071 0 0" size="1.75 1.5 0.01" type="box" conaffinity="0" contype="0" group="1" name="pp_wall_left_visual" material="pp_walls_mat" />
+        <geom pos="1.25 -3 1.5" quat="0.7071 -0.7071 0 0" size="1.75 1.5 0.01" type="box" conaffinity="0" contype="0" group="1" name="pp_wall_right_visual" material="pp_walls_mat" />
+        <geom pos="-2 0 1.5" quat="0.5 0.5 0.5 0.5" size="1.5 1.5 0.01" type="box" conaffinity="0" contype="0" group="1" name="pp_wall_rear_visual" material="pp_walls_mat" />
+        <geom pos="3 0 1.5" quat="0.5 0.5 -0.5 -0.5" size="3 1.5 0.01" type="box" conaffinity="0" contype="0" group="1" name="pp_wall_front_visual" material="pp_walls_mat" />
+        <body name="pp_bin1" pos="0.42 -0.145 0.02">
+            <geom pos="0 0 0" size="0.14 0.125 0.02" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0 0 0" material="pp_light-wood" size="0.14 0.125 0.02" type="box" conaffinity="0" contype="0" group="1" />
+            <geom pos="0 0.125 0.05" size="0.147 0.005 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0 0.125 0.05" size="0.147 0.005 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_light-wood" />
+            <geom pos="0 -0.125 0.05" size="0.147 0.005 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0 -0.125 0.05" size="0.147 0.005 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_light-wood" />
+            <geom pos="0.14 0 0.05" size="0.007 0.125 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0.14 0 0.05" size="0.007 0.125 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_light-wood" />
+            <geom pos="-0.14 0 0.05" size="0.007 0.125 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="-0.14 0 0.05" size="0.007 0.125 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_light-wood" />
+        </body>
+        <body name="pp_bin2" pos="0.42 0.145 0.02">
+            <geom pos="0 0 0" size="0.14 0.125 0.02" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0 0 0" size="0.14 0.125 0.02" type="box" conaffinity="0" contype="0" group="1" material="pp_dark-wood" />
+            <geom pos="0 0.125 0.05" size="0.147 0.005 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0 0.125 0.05" size="0.147 0.005 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_dark-wood" />
+            <geom pos="0 0 0.05" size="0.14 0.005 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0 0 0.05" size="0.14 0.005 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_dark-wood" />
+            <geom pos="0 -0.125 0.05" size="0.147 0.005 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0 -0.125 0.05" size="0.147 0.005 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_dark-wood" />
+            <geom pos="0.14 0 0.05" size="0.007 0.125 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0.14 0 0.05" size="0.007 0.125 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_dark-wood" />
+            <geom pos="0 0 0.05" size="0.007 0.125 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="0 0 0.05" size="0.007 0.125 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_dark-wood" />
+            <geom pos="-0.14 0 0.05" size="0.007 0.125 0.05" type="box" group="0" friction="1 0.005 0.0001" rgba="0 0 0 0" />
+            <geom pos="-0.14 0 0.05" size="0.007 0.125 0.05" type="box" conaffinity="0" contype="0" group="1" material="pp_dark-wood" />
+        </body>
+        <light pos="1.0 1.0 1.5" dir="-0.2 -0.2 -1" specular="0.3 0.3 0.3" directional="true" castshadow="false" />
+       
+       
+        <!-- ===== 相机：沿用 front / handcam_rgb 接口；腕部相机由 panda.xml 提供 ===== -->
+        <camera name="front" pos="1.1 0 0.8" quat="0.6532815 0.2705981 0.2705981 0.6532815" fovy="50" />
+        <camera name="birdview" pos="0.42 0 1.4" quat="1 0 0 0" fovy="50" />
+        <!-- ===== TCP mocap 目标，供现有 RobotSimEnv 控制器使用 ===== -->
+        <body name="target" pos="0.4 0 0.3" quat="0 1 0 0" mocap="true" />
+
+        
+        <!-- ===== milk.xml：可抓取物体，关节阻尼沿用 robosuite ===== -->
+        <body name="pp_milk_object" pos="0.35 -0.2 0.126">
+            <geom pos="0 0 0" mesh="pp_milk_milk_mesh" type="mesh" solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" material="pp_milk_ceramic" group="0" condim="4" name="pp_milk_geom0" />
+            <joint name="pp_milk_joint" type="free" damping="0.0005" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.085" name="pp_milk_bottom_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 0.075" name="pp_milk_top_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0.025 0.025 0" name="pp_milk_horizontal_radius_site" />
+        </body>
+
+
+        <!-- ===== milk-visual.xml：固定、无碰撞的目标提示 ===== -->
+        <body name="pp_milk_visual_object" pos="0.35 0.0825 0.126">
+            <geom pos="0 0 0" mesh="pp_milk_visual_milk_mesh" type="mesh" rgba="0.8 0.8 0.8 0.3" conaffinity="0" contype="0" group="1" mass="0.0001" name="pp_milk_visual_geom0" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.085" name="pp_milk_visual_bottom_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 0.075" name="pp_milk_visual_top_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0.025 0.025 0" name="pp_milk_visual_horizontal_radius_site" />
+        </body>
+
+
+        <!-- ===== bread.xml：可抓取物体，关节阻尼沿用 robosuite ===== -->
+        <body name="pp_bread_object" pos="0.49 -0.09 0.086">
+            <geom pos="0 0 0" mesh="pp_bread_bread_mesh" type="mesh" solimp="0.998 0.998 0.001" solref="0.001 1" density="50" friction="0.95 0.3 0.1" material="pp_bread_bread" group="0" condim="4" name="pp_bread_geom0" />
+            <joint name="pp_bread_joint" type="free" damping="0.0005" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.045" name="pp_bread_bottom_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 0.03" name="pp_bread_top_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0.03 0.03 0" name="pp_bread_horizontal_radius_site" />
+        </body>
+
+
+        <!-- ===== bread-visual.xml：固定、无碰撞的目标提示 ===== -->
+        <body name="pp_bread_visual_object" pos="0.49 0.0825 0.086">
+            <geom pos="0 0 0" mesh="pp_bread_visual_bread_mesh" type="mesh" rgba="0.8 0.8 0.8 0.3" conaffinity="0" contype="0" group="1" mass="0.0001" name="pp_bread_visual_geom0" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.045" name="pp_bread_visual_bottom_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 0.03" name="pp_bread_visual_top_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0.03 0.03 0" name="pp_bread_visual_horizontal_radius_site" />
+        </body>
+
+
+        <!-- ===== cereal.xml：可抓取物体，关节阻尼沿用 robosuite ===== -->
+        <body name="pp_cereal_object" pos="0.35 -0.09 0.141">
+            <geom pos="0 0 0" mesh="pp_cereal_cereal_mesh" type="mesh" solimp="0.998 0.998 0.001" solref="0.001 1" density="150" friction="0.95 0.3 0.1" material="pp_cereal_cereal" group="0" condim="4" name="pp_cereal_geom0" />
+            <joint name="pp_cereal_joint" type="free" damping="0.0005" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.10" name="pp_cereal_bottom_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 0.03" name="pp_cereal_top_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0.04 0.03 0" name="pp_cereal_horizontal_radius_site" />
+        </body>
+
+
+        <!-- ===== cereal-visual.xml：固定、无碰撞的目标提示 ===== -->
+        <body name="pp_cereal_visual_object" pos="0.35 0.2075 0.141">
+            <geom pos="0 0 0" mesh="pp_cereal_visual_cereal_mesh" type="mesh" rgba="0.8 0.8 0.8 0.3" conaffinity="0" contype="0" group="1" mass="0.0001" name="pp_cereal_visual_geom0" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.10" name="pp_cereal_visual_bottom_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 0.03" name="pp_cereal_visual_top_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0.04 0.03 0" name="pp_cereal_visual_horizontal_radius_site" />
+        </body>
+
+
+        <!-- ===== can.xml：可抓取物体，关节阻尼沿用 robosuite ===== -->
+        <body name="pp_can_object" pos="0.49 -0.2 0.101">
+            <geom pos="0 0 0" mesh="pp_can_can_mesh" type="mesh" solimp="0.998 0.998 0.001" solref="0.001 1" density="100" friction="0.95 0.3 0.1" material="pp_can_coke" group="0" condim="4" name="pp_can_geom0" />
+            <joint name="pp_can_joint" type="free" damping="0.0005" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.06" name="pp_can_bottom_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 0.04" name="pp_can_top_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0.025 0.025 0" name="pp_can_horizontal_radius_site" />
+        </body>
+
+
+        <!-- ===== can-visual.xml：固定、无碰撞的目标提示 ===== -->
+        <body name="pp_can_visual_object" pos="0.49 0.2075 0.101">
+            <geom pos="0 0 0" mesh="pp_can_visual_can_mesh" type="mesh" rgba="0.8 0.8 0.8 0.3" conaffinity="0" contype="0" group="1" mass="0.0001" name="pp_can_visual_geom0" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 -0.06" name="pp_can_visual_bottom_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0 0 0.04" name="pp_can_visual_top_site" />
+            <site rgba="0 0 0 0" size="0.005" pos="0.025 0.025 0" name="pp_can_visual_horizontal_radius_site" />
+        </body>
+    </worldbody>
+    <sensor>
+        <framepos name="pp_milk_pos" objtype="body" objname="pp_milk_object" />
+        <framequat name="pp_milk_quat" objtype="body" objname="pp_milk_object" />
+        <framepos name="pp_bread_pos" objtype="body" objname="pp_bread_object" />
+        <framequat name="pp_bread_quat" objtype="body" objname="pp_bread_object" />
+        <framepos name="pp_cereal_pos" objtype="body" objname="pp_cereal_object" />
+        <framequat name="pp_cereal_quat" objtype="body" objname="pp_cereal_object" />
+        <framepos name="pp_can_pos" objtype="body" objname="pp_can_object" />
+        <framequat name="pp_can_quat" objtype="body" objname="pp_can_object" />
+    </sensor>
+</mujoco>

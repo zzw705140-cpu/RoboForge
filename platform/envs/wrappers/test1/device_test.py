@@ -20,7 +20,7 @@ def create_keyboard_sim_env() -> InterventionWrapper:
     """创建带 MuJoCo 窗口和键盘人工接管功能的仿真环境。"""
 
     # 创建仿真基础环境。
-    scene_path = PLATFORM_ROOT / "envs" / "sim" / "simulation" / "assets" / "scene.xml"
+    scene_path = PLATFORM_ROOT / "assets" / "scene.xml"
     base_env = RobotSimEnv(xml_path=scene_path, show_viewer=True)
 
     # 使用键盘人工接管包装层连接仿真基础环境。
