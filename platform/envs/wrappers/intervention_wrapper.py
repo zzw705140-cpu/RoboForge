@@ -23,6 +23,7 @@ from typing import Literal
 
 import gymnasium as gym
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from .action_utils import project_action_to_unit_balls
 
@@ -90,6 +91,7 @@ class InterventionWrapper(gym.Wrapper):
 
         # 创建输入设备对象
         self.controller = self._create_controller(controller_config_path)   
+        self._gamepad_tcp_rotation = None
 
     # 根据 input_device 创建并启动键盘、手柄或 SpaceMouse 控制器
     def _create_controller(self, controller_config_path: str | None):
@@ -179,6 +181,12 @@ class InterventionWrapper(gym.Wrapper):
             # 获取 XYZ 方向归一化动作，并写入人工动作
             dx, dy, dz = self.controller.get_deltas()
             action[:3] = np.asarray([dx, dy, dz], dtype=np.float32)
+            if self.input_device == "gamepad":
+                if self._gamepad_tcp_rotation is None:
+                    raise RuntimeError("Call reset() before using gamepad control.")
+                local_rotation = np.asarray(self.controller.get_rotation_deltas(), dtype=np.float64)
+                # 环境按基座系左乘旋转；R_base_tcp @ rotvec_local 等价于局部右乘。
+                action[3:6] = self._gamepad_tcp_rotation.apply(local_rotation) * self.rotation_action_scale
 
             gripper_command = "no-op"
             if self.use_gripper:
@@ -237,6 +245,7 @@ class InterventionWrapper(gym.Wrapper):
 
         # 执行原环境 step
         obs, reward, terminated, truncated, info = self.env.step(executed_action)
+        self._sync_gamepad_rotation(obs)
         # 当底层环境执行完动作后，让人工层控制层保存的夹爪目标与底层环境保持一致，所以同步的是目标状态
         self._sync_gripper_target(obs)
         info = dict(info)
@@ -247,7 +256,7 @@ class InterventionWrapper(gym.Wrapper):
         else:
             info.pop("intervene_action", None)
         info["is_intervention"] = intervened
-        # 单独的夹爪按钮也会触发 is_intervention；此字段仅表示键盘空格/手柄 RB 的显式接管。
+        # 此字段表示键盘空格/手柄十字左键切换的接管状态。
         info["is_takeover_active"] = takeover_active
 
         # 判断操作人是否按下: success，failure，rerecord_episode（当前轨迹作废，重新录制）
@@ -266,6 +275,14 @@ class InterventionWrapper(gym.Wrapper):
         terminated = bool(terminated or manual_end)
         return obs, reward, terminated, bool(truncated), info
 
+    def _sync_gamepad_rotation(self, observation):
+        """从底层原始观测缓存当前 TCP 姿态，供下一步局部旋转转换。"""
+        if self.input_device == "gamepad":
+            pose = np.asarray(observation["state"]["tcp_pose"], dtype=np.float64)
+            if pose.shape != (7,):
+                raise ValueError("Gamepad local rotation requires tcp_pose [xyz, quaternion_xyzw].")
+            self._gamepad_tcp_rotation = Rotation.from_quat(pose[3:])
+
     # 重置输入控制器和底层环境，并重新同步夹爪目标
     def reset(self, **kwargs):
         """重置环境"""
@@ -278,6 +295,7 @@ class InterventionWrapper(gym.Wrapper):
 
         # 重置环境
         obs, info = self.env.reset(**kwargs)
+        self._sync_gamepad_rotation(obs)
         self._sync_gripper_target(obs)
         info = dict(info)
         info["is_success"] = False

@@ -21,7 +21,10 @@
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
+
+import numpy as np
 
 # 从JSON中读取游戏手柄的按键和摇杆映射
 def load_controller_config(controller_name: str, config_path: str | None = None) -> dict:
@@ -294,16 +297,23 @@ class KeyboardController(InputController):
 ###############################################################
 
 class GamepadController(InputController):
-    """Linux/Windows 下主要使用的游戏手柄实现，基于 pygame 监听手柄事件，并将按键状态转换为 X/Y/Z 方向的增量动作，以及 gripper 控制和 episode 结束状态"""
+    """左杆 XY 平移、扳机 Z 平移、右杆局部 XY 旋转、肩键局部 Z 旋转。"""
 
     # 初始化手柄移动步长、摇杆死区和配置路径
-    def __init__(self, x_step_size=0.01, y_step_size=0.01, z_step_size=0.01, deadzone=0.1, config_path=None):
+    def __init__(self, x_step_size=0.01, y_step_size=0.01, z_step_size=0.01,
+                 deadzone=0.20, config_path=None, sector_half_angle=30.0):
         super().__init__(x_step_size, y_step_size, z_step_size)
+        if not 0 <= deadzone < 1:
+            raise ValueError("deadzone must be in [0, 1).")
+        if not 0 < sector_half_angle < 45:
+            raise ValueError("sector_half_angle must be in (0, 45) degrees.")
         self.deadzone = deadzone
+        self.sector_half_angle = sector_half_angle
         self.joystick = None
         self.intervention_flag = False
         self.config_path = config_path
         self.controller_config = None
+        self._dpad_up_pressed = False
 
     # 初始化 pygame、连接手柄并加载按键配置
     def start(self):
@@ -330,12 +340,17 @@ class GamepadController(InputController):
         buttons = self.controller_config.get("buttons", {})
 
         print("Gamepad controls:")
-        print(f"  {buttons.get('rb', 'RB')} button: Intervention")
+        if self.joystick.get_numhats() <= self.controller_config.get("hats", {}).get("dpad", 0):
+            raise RuntimeError("Configured D-pad hat not available; inspect this controller's D-pad mapping.")
+        print("  D-pad up: Toggle intervention on/off")
         print("  Left analog stick: Move in X-Y plane")
-        print("  Right analog stick (vertical): Move in Z axis")
+        print("  RT/LT: Continuous +Z/-Z translation")
+        print("  D-pad left/right: Close/open gripper")
+        print("  Right stick: Local X rotation horizontally, local Y rotation vertically")
+        print("  LB/RB: Hold for local +Z/-Z rotation (both pressed: stop Z rotation)")
         print(f"  {buttons.get('lt', 'LT')} button: Close gripper")
         print(f"  {buttons.get('rt', 'RT')} button: Open gripper")
-        print(f"  {buttons.get('b', 'B')}/Circle button: Exit")
+        print("  B: Unassigned; Ctrl+C in terminal: Exit")
         print(f"  {buttons.get('y', 'Y')}/Triangle button: End episode with SUCCESS")
         print(f"  {buttons.get('a', 'A')}/Cross button: End episode with FAILURE")
         print(f"  {buttons.get('x', 'X')}/Square button: Rerecord episode")
@@ -361,9 +376,10 @@ class GamepadController(InputController):
         y_button = buttons.get("y", 3)  # Default to 3 if not found
         a_button = buttons.get("a", 0)  # Default to 0 if not found (Logitech F310)
         x_button = buttons.get("x", 2)  # Default to 2 if not found (Logitech F310)
-        lt_button = buttons.get("lt", 6)  # Default to 6 if not found
-        rt_button = buttons.get("rt", 7)  # Default to 7 if not found
-        rb_button = buttons.get("rb", 5)  # Default to 5 if not found
+        trigger_axes = self.controller_config.get("trigger_axes", {})
+        lt_button = buttons.get("lt", 6)
+        rt_button = buttons.get("rt", 7)
+        dpad_hat = self.controller_config.get("hats", {}).get("dpad", 0)
 
         for event in pygame.event.get():
             if event.type == pygame.JOYBUTTONDOWN:
@@ -373,25 +389,82 @@ class GamepadController(InputController):
                     self.episode_end_status = "failure"
                 elif event.button == x_button:
                     self.episode_end_status = "rerecord_episode"
-                elif event.button == lt_button:
+                elif not trigger_axes and event.button == lt_button:
                     self.close_gripper_command = True
-                elif event.button == rt_button:
+                elif not trigger_axes and event.button == rt_button:
                     self.open_gripper_command = True
 
-            # Reset episode status on button release
+            # 松开不撤销结束信号；由 get_episode_end_status 读取并清除。
             elif event.type == pygame.JOYBUTTONUP:
-                if event.button in [x_button, a_button, y_button]:
-                    self.episode_end_status = None
-                elif event.button == lt_button:
+                if not trigger_axes and event.button == lt_button:
                     self.close_gripper_command = False
-                elif event.button == rt_button:
+                elif not trigger_axes and event.button == rt_button:
                     self.open_gripper_command = False
 
-            # Check for RB button for intervention flag
-            if self.joystick.get_button(rb_button):
-                self.intervention_flag = True
-            else:
-                self.intervention_flag = False
+            elif event.type == pygame.JOYHATMOTION and event.hat == dpad_hat:
+                up_pressed = event.value[1] > 0
+                if up_pressed and not self._dpad_up_pressed:
+                    self.intervention_flag = not self.intervention_flag
+                self._dpad_up_pressed = up_pressed
+                self.close_gripper_command = event.value[0] < 0
+                self.open_gripper_command = event.value[0] > 0
+
+    def reset(self):
+        """关闭接管；保留十字上键边沿状态，按住跨回合不会重新开启。"""
+        super().reset()
+
+    def _read_axis(self, name, default_index, default_invert=False):
+        axes = self.controller_config.get("axes", {})
+        inversion = self.controller_config.get("axis_inversion", {})
+        value = self.joystick.get_axis(axes.get(name, default_index))
+        return -value if inversion.get(name, default_invert) else value
+
+    def _rescale_axis(self, value):
+        """死区外线性映射到满量程，边界连续。"""
+        magnitude = max(0.0, (min(abs(value), 1.0) - self.deadzone) / (1.0 - self.deadzone))
+        return math.copysign(magnitude, value)
+
+    def _read_trigger(self, axis_index):
+        """将静止为 -1、完全按下为 +1 的扳机轴映射到 [0, 1]。"""
+        value = self.joystick.get_axis(axis_index)
+        return float(np.clip((value + 1.0) / 2.0, 0.0, 1.0))
+
+    def _rescale_trigger(self, value):
+        """扳机行程的中心死区外线性映射，和摇杆保持相同控制手感。"""
+        return max(0.0, (value - self.deadzone) / (1.0 - self.deadzone))
+
+    def get_rotation_deltas(self):
+        """输出夹爪局部旋转：右 +X、上 +Y、LB +Z、RB -Z。
+
+        右杆四个 60 度扇区之间留空；径向死区外线性增速。
+        肩键独立工作，允许与右杆组合；最终由包装器缩放及限制模长。
+        """
+        import pygame
+
+        try:
+            horizontal = self._read_axis("right_x", 2)
+            vertical = self._read_axis("right_y", 3, True)
+            radius = math.hypot(horizontal, vertical)
+            rx = ry = 0.0
+            if radius > self.deadzone:
+                angle = math.degrees(math.atan2(vertical, horizontal))
+                magnitude = self._rescale_axis(radius)
+                if abs(angle) <= self.sector_half_angle:
+                    rx = magnitude
+                elif abs(abs(angle) - 180.0) <= self.sector_half_angle:
+                    rx = -magnitude
+                elif abs(angle - 90.0) <= self.sector_half_angle:
+                    ry = magnitude
+                elif abs(angle + 90.0) <= self.sector_half_angle:
+                    ry = -magnitude
+            buttons = self.controller_config.get("buttons", {})
+            rz = float(self.joystick.get_button(buttons.get("rb", 5))) - float(
+                self.joystick.get_button(buttons.get("lb", 4))
+            )
+            return rx, ry, rz
+        except pygame.error:
+            print("Error reading gamepad. Is it still connected?")
+            return 0.0, 0.0, 0.0
 
     # 读取摇杆并处理死区和方向反转，生成 XYZ 移动量
     def get_deltas(self):
@@ -399,37 +472,16 @@ class GamepadController(InputController):
         import pygame
 
         try:
-            # Get axis mappings from config
-            axes = self.controller_config.get("axes", {})
-            axis_inversion = self.controller_config.get("axis_inversion", {})
-
-            # Get axis indices from config (with defaults if not found)
-            left_x_axis = axes.get("left_x", 0)
-            left_y_axis = axes.get("left_y", 1)
-            right_y_axis = axes.get("right_y", 3)
-
-            # Get axis inversion settings (with defaults if not found)
-            invert_left_x = axis_inversion.get("left_x", False)
-            invert_left_y = axis_inversion.get("left_y", True)
-            invert_right_y = axis_inversion.get("right_y", True)
-
-            # Read joystick axes
-            x_input = self.joystick.get_axis(left_x_axis)  # Left/Right
-            y_input = self.joystick.get_axis(left_y_axis)  # Up/Down
-            z_input = self.joystick.get_axis(right_y_axis)  # Up/Down for Z
-
-            # Apply deadzone to avoid drift
-            x_input = 0 if abs(x_input) < self.deadzone else x_input
-            y_input = 0 if abs(y_input) < self.deadzone else y_input
-            z_input = 0 if abs(z_input) < self.deadzone else z_input
-
-            # Apply inversion if configured
-            if invert_left_x:
-                x_input = -x_input
-            if invert_left_y:
-                y_input = -y_input
-            if invert_right_y:
-                z_input = -z_input
+            # 左杆两轴独立映射，允许斜向平移；RT/LT 连续控制 Z 轴。
+            x_input = self._rescale_axis(self._read_axis("left_x", 0))
+            y_input = self._rescale_axis(self._read_axis("left_y", 1, True))
+            trigger_axes = self.controller_config.get("trigger_axes", {})
+            if trigger_axes:
+                rt_input = self._rescale_trigger(self._read_trigger(trigger_axes["rt"]))
+                lt_input = self._rescale_trigger(self._read_trigger(trigger_axes["lt"]))
+                z_input = rt_input - lt_input
+            else:
+                z_input = 0.0
 
             # Calculate deltas
             delta_x = y_input * self.y_step_size  # Forward/backward

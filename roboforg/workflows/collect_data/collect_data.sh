@@ -7,13 +7,13 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 cd "${PROJECT_ROOT}"
 
-# Change only these values between collection runs.
+# Experiment configuration: change only these values between collection runs.
 # train: 20 runs × 10 demos = 200 demonstrations.
 # eval:   3 runs × 10 demos = 30 demonstrations.
 SPLIT="train"                                           # 数据用途：train 或 eval
-OUTPUT_DIR_NAME="train_1"                               # datasets/pick 下的保存文件夹；采 eval 时改为 eval_1
+OUTPUT_DIR_NAME="train_test"                               # datasets/pick 下的保存文件夹；采 eval 时改为 eval_1
 SUCCESSES_NEEDED=10
-INPUT_DEVICE="keyboard"
+INPUT_DEVICE="gamepad"                                # keyboard gamepad 或 spacemouse
 SEED=0
 # 接管后首次有效机械臂动作的六维范数阈值；夹爪目标切换也会开始录制。
 START_MOTION_THRESHOLD=0.000001

@@ -176,7 +176,7 @@ class TrainConfig(DefaultConfig):
     observation_horizon = 1             # 规定算法能够接收1帧       /4帧则是将最近4帧作为输入
     gripper_penalty = None              # 当前实验仅使用稀疏任务奖励，暂时不对夹爪开合施加额外惩罚
 
-    # 默认使用键盘；仍可在运行参数中显式改为 SpaceMouse 或手柄。
+    # 默认使用键盘；仍可在运行参数中显式改为 SpaceMouse 或手柄（gamepad）
     input_device = "keyboard"
     show_viewer = True                  #运行环境时默认打开Mijoco可视化窗口
 

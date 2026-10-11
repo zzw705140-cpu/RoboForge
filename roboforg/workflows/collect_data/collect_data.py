@@ -147,7 +147,7 @@ def collect_demonstrations(
                 _update_held_gripper(hold_action, executed_action, gripper_threshold)
 
                 # 接管开关打开并首次执行有效动作时，从该动作执行前的观测开始录制。
-                # 单独按空格/RB、或夹爪持续保持原目标，都不会触发录制。
+                # 单独按空格/十字上键切换接管、或夹爪持续保持原目标，都不会触发录制。
                 if not recording_started:
                     recording_started = bool(info["is_takeover_active"]) and _is_first_effective_action(
                         executed_action,
@@ -258,7 +258,12 @@ def main() -> None:
     parser.add_argument("--split", choices=("train", "eval"), default="train")
     parser.add_argument("--output-dir-name", type=str,
                         help="Folder under datasets/pick; defaults to the split name.")
-    parser.add_argument("--input-device", choices=("keyboard", "gamepad", "spacemouse"), default="keyboard")
+    parser.add_argument(
+        "--input-device",
+        choices=("keyboard", "gamepad", "spacemouse"),
+        default=None,
+        help="Override TrainConfig.input_device for this collection run.",
+    )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--start-motion-threshold", type=float, default=1e-6,
                         help="Minimum six-axis command norm that starts recording after takeover.")
@@ -274,7 +279,8 @@ def main() -> None:
 
     # 收集阶段始终使用可视化窗口和人工输入设备，不创建 fake_env。
     config = TrainConfig()
-    config.input_device = args.input_device
+    if args.input_device is not None:
+        config.input_device = args.input_device
     config.show_viewer = True
     env = config.get_environment(fake_env=False, save_video=False, classifier=False)
     try:
