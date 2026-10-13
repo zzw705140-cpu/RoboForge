@@ -15,7 +15,7 @@ import jax
 from roboforg.data.act_data.data_conversion import ACTBatchConverter
 from roboforg.utils.checkpoint_untils import create_run_dir, save_run_config
 from roboforg.utils.wandb import make_wandb_logger
-from roboforg.workflows.act.common import (
+from roboforg.workflows.BC.act.common import (
     ACTWorkflowConfig,
     CHECKPOINT_EVERY_EPOCHS,
     CHECKPOINT_KEEP_LAST,
@@ -34,7 +34,7 @@ from roboforg.workflows.act.common import (
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 CHECKPOINT_ROOT = PROJECT_ROOT / "checkpoints" / "act"
 
 
@@ -270,7 +270,7 @@ def main() -> None:
                 (not final_epoch and completed % args.eval_every_epochs == 0)
                 or (final_epoch and args.final_eval == "true")
             ):
-                from roboforg.workflows.act_1.eval_act import evaluate_policy
+                from roboforg.workflows.BC.act_1.eval_act import evaluate_policy
                 results = evaluate_policy(agent, num_episodes=args.num_eval_episodes,
                                           seed=args.seed + completed)
                 logger.log({"train_step": step, "evaluation": {"epoch": completed, **results}})

@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 
 from roboforg.agent.diffusion_policy import DataNormalizer
-from roboforg.workflows.diffusion_policy.common import (
+from roboforg.workflows.BC.diffusion_policy.common import (
     DiffusionWorkflowConfig,
     checkpoint_setup,
     create_policy,

@@ -2,7 +2,7 @@
 # 独立测评 ACT checkpoint：关屏统计成功率，开屏只观察动作。
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 CHECKPOINT_PATH=""
@@ -32,7 +32,7 @@ PYTHON
 )"
 fi
 
-python -m roboforg.workflows.act_1.eval_act \
+python -m roboforg.workflows.BC.act_1.eval_act \
   --checkpoint="$CHECKPOINT_PATH" \
   --num-episodes="$NUM_EPISODES" \
   --seed="$SEED" \
@@ -41,9 +41,9 @@ python -m roboforg.workflows.act_1.eval_act \
 
 # conda activate gym_hil
 # cd ~/project/RoboForge
-# bash roboforg/workflows/act_1/eval_act.sh
+# bash roboforg/workflows/BC/act_1/eval_act.sh
 
-# python -m roboforg.workflows.act_1.eval_act \
+# python -m roboforg.workflows.BC.act_1.eval_act \
 #   --checkpoint="checkpoints/act/<运行目录>/epoch_0500.ckpt" \
 #   --show-viewer=true \
 #   --num-episodes=40 \

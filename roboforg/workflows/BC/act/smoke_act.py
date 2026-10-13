@@ -20,7 +20,7 @@ import jax
 # 必须在导入会加载 MuJoCo 的 run_act 前设置，用户已显式设置时则尊重其选择。
 os.environ.setdefault("MUJOCO_GL", "egl")
 
-from roboforg.workflows.act.common import (
+from roboforg.workflows.BC.act.common import (
     ACTWorkflowConfig,
     create_act_agent,
     fit_train_normalizer,
@@ -31,13 +31,13 @@ from roboforg.workflows.act.common import (
     sample_act_batch,
     save_checkpoint,
 )
-from roboforg.workflows.act.eval_act import evaluate_dataset
-from roboforg.workflows.act.run_act import (
+from roboforg.workflows.BC.act.eval_act import evaluate_dataset
+from roboforg.workflows.BC.act.run_act import (
     batch_observation,
     make_evaluation_environment,
     run_rollout,
 )
-from roboforg.workflows.act.train_act import run_epoch
+from roboforg.workflows.BC.act.train_act import run_epoch
 from roboforg.agent.act import ActionEnsemble
 
 

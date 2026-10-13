@@ -13,13 +13,13 @@ import numpy as np
 
 
 # Pick 配置沿用 platform 作为顶层包；模块运行时补入该目录，使 run_act 不依赖当前终端路径。
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 PLATFORM_ROOT = PROJECT_ROOT / "platform"
 if str(PLATFORM_ROOT) not in sys.path:
     sys.path.insert(0, str(PLATFORM_ROOT))
 
 from roboforg.agent.act import ActionEnsemble
-from roboforg.workflows.act.common import (
+from roboforg.workflows.BC.act.common import (
     HEADLESS_NUM_ROLLOUTS,
     VIEWER_NUM_ROLLOUTS,
     create_act_agent,

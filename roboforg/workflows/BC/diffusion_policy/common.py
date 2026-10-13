@@ -16,7 +16,7 @@ from flax.core import freeze
 from roboforg.agent.diffusion_policy import DataNormalizer, DiffusionPolicy
 from roboforg.data.data_buffer import DataBuffer
 from roboforg.data.diffusion_policy_data import DiffusionPolicyBatchConverter, DiffusionPolicySampler
-from roboforg.workflows.diffusion_policy.train_steps import DiffusionTrainState, create_train_state
+from roboforg.workflows.BC.diffusion_policy.train_steps import DiffusionTrainState, create_train_state
 
 
 @dataclass(frozen=True)

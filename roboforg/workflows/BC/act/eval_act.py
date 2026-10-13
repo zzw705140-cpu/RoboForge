@@ -10,7 +10,7 @@ from typing import Any
 import jax
 
 from roboforg.data.act_data.data_conversion import ACTBatchConverter
-from roboforg.workflows.act.common import (
+from roboforg.workflows.BC.act.common import (
     ACTWorkflowConfig,
     create_act_agent,
     load_checkpoint_into_agent,

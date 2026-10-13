@@ -2,7 +2,7 @@
 # 独立评估 Diffusion Policy：路径留空时自动使用最新 checkpoint。
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 CHECKPOINT_PATH=""                              # 留空：最新权重；填写完整路径：指定权重
@@ -18,7 +18,7 @@ if [[ -n "$CHECKPOINT_PATH" ]]; then
   CHECKPOINT_ARGS+=(--checkpoint "$CHECKPOINT_PATH")
 fi
 
-python -m roboforg.workflows.diffusion_policy.eval_diffusion_policy "${CHECKPOINT_ARGS[@]}" \
+python -m roboforg.workflows.BC.diffusion_policy.eval_diffusion_policy "${CHECKPOINT_ARGS[@]}" \
   --show-viewer="$SHOW_VIEWER" \
   --num-episodes="$NUM_EPISODES" \
   --print-policy-output="$PRINT_POLICY_OUTPUT" \

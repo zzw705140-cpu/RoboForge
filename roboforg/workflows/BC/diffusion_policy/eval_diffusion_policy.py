@@ -12,14 +12,14 @@ import jax
 import numpy as np
 
 from roboforg.utils.checkpoint_untils import find_latest_checkpoint, find_latest_run_dir
-from roboforg.workflows.diffusion_policy.common import (
+from roboforg.workflows.BC.diffusion_policy.common import (
     checkpoint_setup,
     create_policy,
     restore_ema_params,
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 CHECKPOINT_ROOT = PROJECT_ROOT / "checkpoints" / "diffusion_policy"
 PLATFORM_ROOT = PROJECT_ROOT / "platform"
 

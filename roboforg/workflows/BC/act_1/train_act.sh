@@ -2,7 +2,7 @@
 # ACT-1 训练入口：留空恢复路径时新建项目；填写 checkpoint 时继续原项目。
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # 数据与 ACT 参数：沿用旧 ACT 训练脚本的常用值。
@@ -37,7 +37,7 @@ if [[ -n "$RESUME_CHECKPOINT" ]]; then
   RESUME_ARGS+=(--resume-checkpoint "$RESUME_CHECKPOINT")
 fi
 
-python -m roboforg.workflows.act_1.train_act "${RESUME_ARGS[@]}" \
+python -m roboforg.workflows.BC.act_1.train_act "${RESUME_ARGS[@]}" \
   --dataset-root="$DATASET_ROOT" \
   --task-name="$TASK_NAME" \
   --train-dir-name="$TRAIN_DIR_NAME" \
@@ -60,4 +60,4 @@ python -m roboforg.workflows.act_1.train_act "${RESUME_ARGS[@]}" \
 
 # conda activate gym_hil
 # cd ~/project/RoboForge
-# bash roboforg/workflows/act_1/train_act.sh
+# bash roboforg/workflows/BC/act_1/train_act.sh

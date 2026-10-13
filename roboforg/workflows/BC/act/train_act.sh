@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 ##############################################################################
@@ -31,7 +31,7 @@ export XLA_PYTHON_CLIENT_PREALLOCATE=false
 MODE="${1:-}"
 RUN_INDEX="${2:-}"
 if [[ "$MODE" != "new" && "$MODE" != "resume" ]]; then
-  echo "Usage: bash roboforg/workflows/act/train_act.sh {new|resume} RUN_INDEX [--num-epochs N]" >&2
+  echo "Usage: bash roboforg/workflows/BC/act/train_act.sh {new|resume} RUN_INDEX [--num-epochs N]" >&2
   exit 2
 fi
 if [[ ! "$RUN_INDEX" =~ ^[1-9][0-9]*$ ]]; then
@@ -52,7 +52,7 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     *)
       echo "Unknown argument: $1" >&2
-      echo "Usage: bash roboforg/workflows/act/train_act.sh {new|resume} RUN_INDEX [--num-epochs N]" >&2
+      echo "Usage: bash roboforg/workflows/BC/act/train_act.sh {new|resume} RUN_INDEX [--num-epochs N]" >&2
       exit 2
       ;;
   esac
@@ -71,13 +71,13 @@ if [[ "$MODE" == "new" ]]; then
   fi
 else
   # 按 epoch 数选择最近的完整训练状态，并兼容旧 latest.ckpt。
-  LATEST_CHECKPOINT="$(python roboforg/workflows/act/checkpoint_paths.py --directory "$CHECKPOINT_DIR")"
+  LATEST_CHECKPOINT="$(python roboforg/workflows/BC/act/checkpoint_paths.py --directory "$CHECKPOINT_DIR")"
   RESUME_ARGS+=(--resume="$LATEST_CHECKPOINT")
 fi
 
 echo "ACT ${MODE}: name=${RUN_NAME}, epochs=${NUM_EPOCHS}, batch=${BATCH_SIZE}, chunk=${ACTION_HORIZON}"
 
-python -m roboforg.workflows.act.train_act \
+python -m roboforg.workflows.BC.act.train_act \
   --dataset-root=datasets \
   --checkpoint-dir="$CHECKPOINT_DIR" \
   --num-epochs="$NUM_EPOCHS" \
@@ -98,9 +98,9 @@ python -m roboforg.workflows.act.train_act \
 # 训练命令
 # conda activate gym_hil
 # cd ~/project/RoboForge
-# bash roboforg/workflows/act/train_act.sh new 1 --num-epochs 1000
-# bash roboforg/workflows/act/train_act.sh resume 1 --num-epochs 20
+# bash roboforg/workflows/BC/act/train_act.sh new 1 --num-epochs 1000
+# bash roboforg/workflows/BC/act/train_act.sh resume 1 --num-epochs 20
 
 # 测评命令
-# bash roboforg/workflows/act/test_act.sh --run 1 --num-rollouts 40
-# bash roboforg/workflows/act/test_act.sh --run 1 --num-rollouts 10 --show-viewer
+# bash roboforg/workflows/BC/act/test_act.sh --run 1 --num-rollouts 40
+# bash roboforg/workflows/BC/act/test_act.sh --run 1 --num-rollouts 10 --show-viewer

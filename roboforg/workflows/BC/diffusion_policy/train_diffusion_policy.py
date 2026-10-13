@@ -14,7 +14,7 @@ import jax
 from roboforg.agent.diffusion_policy import DataNormalizer
 from roboforg.utils.checkpoint_untils import create_run_dir, save_run_config
 from roboforg.utils.wandb import make_wandb_logger
-from roboforg.workflows.diffusion_policy.common import (
+from roboforg.workflows.BC.diffusion_policy.common import (
     DiffusionWorkflowConfig,
     checkpoint_setup,
     convert_batch,
@@ -26,10 +26,10 @@ from roboforg.workflows.diffusion_policy.common import (
     restore_training_state,
     save_checkpoint,
 )
-from roboforg.workflows.diffusion_policy.train_steps import train_step
+from roboforg.workflows.BC.diffusion_policy.train_steps import train_step
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 CHECKPOINT_ROOT = PROJECT_ROOT / "checkpoints" / "diffusion_policy"
 
 
@@ -300,7 +300,7 @@ def main() -> None:
             if ((not final_epoch and completed % args.eval_every_epochs == 0)
                     or (final_epoch and args.final_eval == "true")):
                 # 直接复用独立评估页的函数，避免维护两套 rollout 逻辑。
-                from roboforg.workflows.diffusion_policy.eval_diffusion_policy import evaluate_policy
+                from roboforg.workflows.BC.diffusion_policy.eval_diffusion_policy import evaluate_policy
                 results = evaluate_policy(
                     policy, state.ema_params, num_episodes=args.num_eval_episodes,
                     seed=args.seed + completed,

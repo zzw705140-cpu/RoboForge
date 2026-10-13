@@ -2,7 +2,7 @@
 # Diffusion Policy 训练入口：恢复路径留空时新建实验，填写完整 checkpoint 路径时继续原实验。
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # 数据、任务与初始化权重。
@@ -58,7 +58,7 @@ if [[ -n "$RESUME_CHECKPOINT" ]]; then
   RESUME_ARGS+=(--resume-checkpoint "$RESUME_CHECKPOINT")
 fi
 
-python -m roboforg.workflows.diffusion_policy.train_diffusion_policy "${RESUME_ARGS[@]}" \
+python -m roboforg.workflows.BC.diffusion_policy.train_diffusion_policy "${RESUME_ARGS[@]}" \
   --dataset-root="$DATASET_ROOT" \
   --task-name="$TASK_NAME" \
   --train-dir-name="$TRAIN_DIR_NAME" \

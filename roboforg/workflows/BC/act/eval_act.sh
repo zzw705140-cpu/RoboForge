@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 CHECKPOINT="${1:-checkpoints/act/best.ckpt}"
@@ -17,4 +17,4 @@ if [ ! -f "$CHECKPOINT" ]; then
 fi
 
 # 其余参数原样传给 eval_act.py，例如 --max-batches=1。
-python -m roboforg.workflows.act.eval_act --checkpoint="$CHECKPOINT" "$@"
+python -m roboforg.workflows.BC.act.eval_act --checkpoint="$CHECKPOINT" "$@"

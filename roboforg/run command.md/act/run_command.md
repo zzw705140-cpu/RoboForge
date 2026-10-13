@@ -3,7 +3,7 @@
 conda activate gym_hil
 cd ~/project/RoboForge
 
-python -m roboforg.workflows.act_1.eval_act \
+python -m roboforg.workflows.BC.act_1.eval_act \
   --checkpoint="checkpoints/act/pick__act__20260925_115405/epoch_0700.ckpt" \
   --show-viewer=true \
   --num-episodes=10 \
@@ -16,4 +16,4 @@ python -m roboforg.workflows.act_1.eval_act \
 conda activate gym_hil
 cd ~/project/RoboForge
 
-bash roboforg/workflows/act_1/train_act.sh
+bash roboforg/workflows/BC/act_1/train_act.sh

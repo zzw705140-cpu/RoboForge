@@ -9,9 +9,9 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock, patch
 
-from roboforg.workflows.act import run_act, train_act
-from roboforg.workflows.act.checkpoint_paths import latest_checkpoint, resolve_run
-from roboforg.workflows.act.training_logger import ACTTrainingLogger
+from roboforg.workflows.BC.act import run_act, train_act
+from roboforg.workflows.BC.act.checkpoint_paths import latest_checkpoint, resolve_run
+from roboforg.workflows.BC.act.training_logger import ACTTrainingLogger
 
 
 class ACTWorkflowTest(unittest.TestCase):

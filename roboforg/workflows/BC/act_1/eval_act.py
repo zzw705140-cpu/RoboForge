@@ -11,14 +11,14 @@ import jax
 import numpy as np
 
 from roboforg.agent.act import ActionEnsemble
-from roboforg.workflows.act.common import (
+from roboforg.workflows.BC.act.common import (
     create_act_agent,
     load_checkpoint_into_agent,
     read_checkpoint_setup,
 )
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[3]
+PROJECT_ROOT = Path(__file__).resolve().parents[4]
 PLATFORM_ROOT = PROJECT_ROOT / "platform"
 if str(PLATFORM_ROOT) not in sys.path:
     sys.path.insert(0, str(PLATFORM_ROOT))

@@ -10,7 +10,7 @@ from typing import Any
 
 import jax
 
-from roboforg.workflows.act.common import (
+from roboforg.workflows.BC.act.common import (
     ACTWorkflowConfig,
     DEFAULT_NUM_EPOCHS,
     CHECKPOINT_EVERY_EPOCHS,
@@ -28,8 +28,8 @@ from roboforg.workflows.act.common import (
     save_checkpoint,
 )
 from roboforg.data.act_data.data_conversion import ACTBatchConverter
-from roboforg.workflows.act.training_logger import ACTTrainingLogger
-from roboforg.workflows.act.checkpoint_paths import numbered_checkpoints
+from roboforg.workflows.BC.act.training_logger import ACTTrainingLogger
+from roboforg.workflows.BC.act.checkpoint_paths import numbered_checkpoints
 
 
 def save_training_checkpoint(directory, *, agent, epoch, config, metrics):
@@ -243,7 +243,7 @@ def main() -> None:
 
             # 同一个条件合并周期与末轮触发，末轮恰好到周期时不会重复测评。
             if completed_epochs % ROLLOUT_EVERY_EPOCHS == 0 or is_final_epoch:
-                from roboforg.workflows.act.run_act import evaluate_policy
+                from roboforg.workflows.BC.act.run_act import evaluate_policy
 
                 print(f"Evaluating policy after epoch {completed_epochs} ({HEADLESS_NUM_ROLLOUTS} episodes).", flush=True)
                 rollout_metrics = evaluate_policy(
