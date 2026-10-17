@@ -36,7 +36,7 @@ ALPHA=100.0                                # Actor 蒸馏损失权重, 总损失
 Q_AGGREGATION=mean                         # Q head 聚合方式, mean 取均值或 min 取最小值
 
 # ------------------------- 训练与 checkpoint ------------------------- #
-NUM_EPOCHS=4                                      # 目标总轮数, 包含续训前已完成轮数
+NUM_EPOCHS=700                                      # 目标总轮数, 包含续训前已完成轮数
 STEPS_PER_EPOCH=""                         # 每轮随机更新次数, 留空自动计算或沿用续训记录
 SEED=""                                    # 随机种子, 留空时新训练默认 0, 续训使用保存值
 DEVICE=auto                                # 计算设备, auto 自动选择, 也可指定 cpu 或 gpu
