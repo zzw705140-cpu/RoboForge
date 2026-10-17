@@ -13,7 +13,7 @@ from typing import Any
 import numpy as np
 
 from roboforg_1.data.data_store import DataStore, Trajectory
-from roboforg_1.data.utils import stack_tree, tree_take
+from roboforg_1.data.utils import stack_tree, tree_leading_length, tree_take
 
 
 ##############################################################################
@@ -177,6 +177,123 @@ class ChunkBCReplayBuffer:
             "actions": tree_take(trajectory["actions"], action_indices),
             "action_valid": action_valid,
         }
+
+    #####################################
+    #        critic数据处理和调用         #
+    #####################################
+
+    @staticmethod
+    def build_chunk_transition(
+        trajectory: Trajectory,
+        start_step: int,
+        observation_horizon: int,
+        action_horizon: int,
+        discount: float,
+    ) -> dict[str, Any]:
+        """从一条轨迹构造完整 H 步 transition，不采样、不拼 batch、不填充动作。
+
+        输入：观测叶子为 [L+1,...]，动作为 [L,A]，奖励与 masks 为 [L]。
+        输出：动作展平为 [H*A]    ，奖励与 mask 为 float32 标量；
+
+        当前和下一历史窗口分别以 o_t 和 o_(t+H) 结尾。
+        masks 表示能否 bootstrap，与 BC 的 action_valid 不同。
+        """
+        ChunkBCReplayBuffer._validate_sample_args(1, observation_horizon, action_horizon)
+        if isinstance(start_step, bool) or not isinstance(start_step, Integral):
+            raise TypeError("start_step must be an integer.")
+        if not 0.0 <= discount <= 1.0:
+            raise ValueError("discount must lie in [0, 1].")
+        for key in ("observations", "actions", "rewards", "masks"):
+            if key not in trajectory:
+                raise KeyError(f"Trajectory requires {key!r}.")
+
+        actions = np.asarray(trajectory["actions"])
+        if actions.ndim != 2 or min(actions.shape) <= 0:
+            raise ValueError("Trajectory actions must have non-empty shape [L, action_dim].")
+        if not np.issubdtype(actions.dtype, np.floating):
+            raise TypeError("Trajectory actions must have a floating dtype.")
+        length = len(actions)
+        if tree_leading_length(trajectory["observations"]) != length + 1:
+            raise ValueError("Trajectory must contain L+1 observations for L actions.")
+        next_step = start_step + action_horizon
+        if start_step < 0 or next_step > length:
+            raise IndexError("The requested complete action chunk exceeds the trajectory.")
+
+        rewards = np.asarray(trajectory["rewards"])
+        masks = np.asarray(trajectory["masks"])
+        if rewards.shape != (length,) or masks.shape != (length,):
+            raise ValueError("Trajectory rewards and masks must have shape [L].")
+        if not np.all(np.isfinite(rewards)):
+            raise ValueError("Trajectory rewards must be finite.")
+        if not np.all(np.isin(masks, (0, 1))):
+            raise ValueError("Trajectory masks must contain only 0 or 1.")
+        if np.any(masks[start_step : next_step - 1] == 0):
+            raise ValueError("An action chunk must not cross a terminal transition.")
+        if "dones" in trajectory:
+            dones = np.asarray(trajectory["dones"])
+            if dones.shape != (length,) or not np.all(np.isin(dones, (0, 1))):
+                raise ValueError("Trajectory dones must have shape [L] and contain only 0 or 1.")
+            if np.any(dones[start_step : next_step - 1]):
+                raise ValueError("An action chunk must not cross an episode boundary.")
+
+        # 历史不足时重复 o_0；动作始终取真实的完整 H 步。
+        observation_indices = np.maximum(
+            np.arange(start_step - observation_horizon + 1, start_step + 1, dtype=np.int64), 0
+        )
+        next_observation_indices = np.maximum(
+            np.arange(next_step - observation_horizon + 1, next_step + 1, dtype=np.int64), 0
+        )
+        discount_powers = np.power(float(discount), np.arange(action_horizon))
+        return {
+            "observations": tree_take(trajectory["observations"], observation_indices),
+            "actions": actions[start_step:next_step].reshape(-1),
+            "rewards": np.asarray(np.sum(discount_powers * rewards[start_step:next_step]), dtype=np.float32),
+            "next_observations": tree_take(trajectory["observations"], next_observation_indices),
+            "masks": np.asarray(np.prod(masks[start_step:next_step]), dtype=np.float32),
+        }
+
+    def sample_fql_chunk(
+        self,
+        batch_size: int,
+        *,
+        observation_horizon: int,
+        action_horizon: int,
+        discount: float,
+    ) -> dict[str, Any]:
+        """均匀有放回采样完整动作块，构造 FQL 所需的 NumPy batch。
+
+        输出 observations、next_observations 的叶子为 [B,T,...]，
+        actions 为 [B,H*A]，rewards 和 masks 为 [B]。
+        不足 H 步的尾部起点不参与采样；discount 必须与算法一致。
+        """
+        self._validate_sample_args(batch_size, observation_horizon, action_horizon)
+        if not 0.0 <= discount <= 1.0:
+            raise ValueError("discount must lie in [0, 1].")
+
+        # 长度 L 的轨迹可提供 max(L-H+1, 0) 个完整动作块。
+        valid_counts = np.maximum(self.trajectory_lengths - action_horizon + 1, 0)
+        cumulative_counts = np.cumsum(valid_counts, dtype=np.int64)
+        if cumulative_counts.size == 0 or cumulative_counts[-1] == 0:
+            raise ValueError("No trajectory contains a complete action chunk for this action_horizon.")
+        global_starts = self._rng.integers(0, int(cumulative_counts[-1]), size=batch_size)
+        samples: dict[str, list[Any]] = {
+            "observations": [], "actions": [], "rewards": [],
+            "next_observations": [], "masks": [],
+        }
+        for global_start in global_starts:
+            trajectory_index = int(np.searchsorted(cumulative_counts, global_start, side="right"))
+            previous_count = 0 if trajectory_index == 0 else int(cumulative_counts[trajectory_index - 1])
+            start_step = int(global_start - previous_count)
+            sample = self.build_chunk_transition(
+                self._store.get_trajectory(trajectory_index),
+                start_step,
+                observation_horizon,
+                action_horizon,
+                discount,
+            )
+            for key, value in sample.items():
+                samples[key].append(value)
+        return {key: stack_tree(values) for key, values in samples.items()}
 
     # --------------------------- 公共采样参数检查 --------------------------- #
 

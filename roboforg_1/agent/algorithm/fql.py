@@ -68,6 +68,7 @@ class FQLAGENT(flax.struct.PyTreeNode):
         behavior_flow_lr: float = 3e-4,
         one_step_actor_lr: float = 3e-4,
         critic_lr: float = 3e-4,
+        load_pretrained_backbone: bool = True,
     ) -> FQLAGENT:
         """检查输入、初始化各网络并返回 Agent；示例观测不含 batch 维，动作块须展平。"""
 
@@ -205,7 +206,8 @@ class FQLAGENT(flax.struct.PyTreeNode):
             rng=encoder_rng,
             tx=optax.adam(learning_rate=encoder_lr),
         )
-        encoder = load_resnet10_params(encoder)
+        if load_pretrained_backbone:
+            encoder = load_resnet10_params(encoder)
 
         # 后续 Behavior Flow、Actor 和 Critic 根据此特征初始化输入维度。
         sample_features = encoder(sample_observations, train=False)
