@@ -10,3 +10,4 @@ datasets/
 # wandb/
 *.ckpt
 *.pkl
+要求/
