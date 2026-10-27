@@ -108,8 +108,12 @@ def _run_episode(agent: FQLAGENT, config: FQLWorkflowConfig, env: Any, *, seed: 
     return {"success": success, "return": total_return, "steps": steps, "clipped_steps": clipped_steps}, rng
 
 
-def evaluate_policy(agent: FQLAGENT, config: FQLWorkflowConfig, *, num_episodes: int = 40, seed: int = 0, env: Any = None, show_viewer: bool = False, print_policy_output: bool = False, max_episode_steps: int | None = None) -> dict[str, float]:
-    """评估当前 Agent 并汇总指标, 不更新参数或训练 RNG, 仅关闭自行创建的环境."""
+def evaluate_policy(agent: FQLAGENT, config: FQLWorkflowConfig, *, num_episodes: int = 40, seed: int = 0, env: Any = None, show_viewer: bool = False, print_policy_output: bool = False, max_episode_steps: int | None = None, verbose: bool = True) -> dict[str, float]:
+    """评估 Agent, 不更新参数或训练 RNG, 仅关闭自行创建的环境.
+
+    输入: Agent、对应配置及评估选项; verbose=False 关闭回合、汇总和动作打印.
+    输出: 成功率、平均回报、平均步数及平均裁剪步数的标量字典.
+    """
     if not isinstance(num_episodes, int) or isinstance(num_episodes, bool) or num_episodes <= 0:
         raise ValueError("num_episodes must be a positive integer.")
     if seed < 0:
@@ -128,9 +132,13 @@ def evaluate_policy(agent: FQLAGENT, config: FQLWorkflowConfig, *, num_episodes:
     episodes, rng = [], jax.random.PRNGKey(seed)
     try:
         for index in range(num_episodes):
-            result, rng = _run_episode(agent, config, env, seed=seed + index, rng=rng, print_policy_output=print_policy_output, max_episode_steps=max_episode_steps)
+            result, rng = _run_episode(agent, config, env, seed=seed + index, rng=rng, print_policy_output=print_policy_output and verbose, max_episode_steps=max_episode_steps)
             episodes.append(result)
-            print(f"Evaluation {index + 1}/{num_episodes}: success={result['success']}, return={result['return']:.3f}, steps={result['steps']}", flush=True)
+            if verbose:
+                print(f"测评 {index + 1}/{num_episodes} | 成功: {'true' if result['success'] else 'false'} | 奖励: {result['return']:g}", flush=True)
+        if verbose:
+            successes = sum(item["success"] for item in episodes)
+            print(f"测评成功率: {successes / len(episodes):.1%} ({successes}/{len(episodes)})", flush=True)
         return {
             "success_rate": float(np.mean([item["success"] for item in episodes])),
             "mean_return": float(np.mean([item["return"] for item in episodes])),
@@ -167,12 +175,10 @@ def main() -> None:
     """定位并恢复 checkpoint, 调用训练期间共用的评估函数."""
     args = parse_args()
     checkpoint = _common.resolve_checkpoint(checkpoint=args.checkpoint, run_dir=args.run_dir, checkpoint_root=args.checkpoint_root, task_name=args.task_name or "pick")
-    agent, config, metadata = _common.load_checkpoint(checkpoint)
+    agent, config, _ = _common.load_checkpoint(checkpoint)
     if args.task_name is not None and args.task_name != config.task_name:
         raise ValueError("Requested task does not match the checkpoint task.")
-    print(f"Checkpoint: {checkpoint}; task={config.task_name}; completed_epochs={metadata['epoch'] + 1}", flush=True)
-    metrics = evaluate_policy(agent, config, num_episodes=args.num_episodes, seed=args.seed, show_viewer=args.show_viewer == "true", print_policy_output=args.print_policy_output == "true", max_episode_steps=args.max_episode_steps)
-    print(f"Evaluation metrics: {metrics}", flush=True)
+    evaluate_policy(agent, config, num_episodes=args.num_episodes, seed=args.seed, show_viewer=args.show_viewer == "true", print_policy_output=args.print_policy_output == "true", max_episode_steps=args.max_episode_steps)
 
 
 if __name__ == "__main__":

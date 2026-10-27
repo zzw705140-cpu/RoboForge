@@ -14,7 +14,7 @@ bash 'roboforg_1/workflows/BC/bc+fql/train_fql.sh' \
 conda activate gym_hil
 cd /home/xinyu/project/RoboForge
 bash 'roboforg_1/workflows/BC/bc+fql/eval_fql.sh' \
-  --checkpoint='checkpoints/fql/pick__fql__20261017_162454/epoch_0004.ckpt' \
+  --checkpoint='checkpoints/fql/pick__fql__20261017_164959/epoch_0100.ckpt' \
   --show-viewer=true \
   --num-episodes=20 \
   --print-policy-output=false

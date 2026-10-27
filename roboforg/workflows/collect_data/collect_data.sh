@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Collect one batch of successful human Pick demonstrations.
+# Collect one batch of successful human demonstrations for the configured task.
 
 set -euo pipefail
 
@@ -10,8 +10,9 @@ cd "${PROJECT_ROOT}"
 # Experiment configuration: change only these values between collection runs.
 # train: 20 runs × 10 demos = 200 demonstrations.
 # eval:   3 runs × 10 demos = 30 demonstrations.
+TASK="pick"                                             # 任务：pick 或 sim_arrange_boxes
 SPLIT="train"                                           # 数据用途：train 或 eval
-OUTPUT_DIR_NAME="train_test"                               # datasets/pick 下的保存文件夹；采 eval 时改为 eval_1
+OUTPUT_DIR_NAME="train_1"                               # datasets/<任务>/ 下的自定义文件夹，如 train_1、eval_1
 SUCCESSES_NEEDED=10
 INPUT_DEVICE="gamepad"                                # keyboard gamepad 或 spacemouse
 SEED=0
@@ -19,6 +20,7 @@ SEED=0
 START_MOTION_THRESHOLD=0.000001
 
 python -m roboforg.workflows.collect_data.collect_data \
+    --task="${TASK}" \
     --split="${SPLIT}" \
     --output-dir-name="${OUTPUT_DIR_NAME}" \
     --successes-needed="${SUCCESSES_NEEDED}" \

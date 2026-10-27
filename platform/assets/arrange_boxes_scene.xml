@@ -1,25 +1,25 @@
-#多方块整理任务场景
-#搭建机械臂整理方块的仿真环境
+<!-- 多方块整理任务场景 -->
+<!-- 搭建机械臂整理方块的仿真环境 -->
 
 <mujoco model="ArrangeBoxesScene">
-    <include file="panda.xml"/>                                           #把之前定义好的panda机械臂和夹爪加载进当前场景
+    <include file="panda.xml"/>                                           <!-- 把之前定义好的panda机械臂和夹爪加载进当前场景 -->
 
-    <option timestep=".002" noslip_iterations="5" noslip_tolerance="0"/>  #分别设置仿真步长
+    <option timestep=".002" noslip_iterations="5" noslip_tolerance="0"/>  <!-- 分别设置仿真步长 -->
 
-    <statistic center="0.3 0 0.4" extent=".8"/>                           #摄像机
+    <statistic center="0.3 0 0.4" extent=".8"/>                           <!-- 摄像机 -->
 
-    <visual>          #灯光
+    <visual>          <!-- 灯光 -->
       <headlight diffuse=".4 .4 .4" ambient=".5 .5 .5"/>
       <global azimuth="160" elevation="-20" offheight="128" offwidth="128"/>
       <quality offsamples="8"/>
     </visual>
-    <asset>           #阴影，天空和地面材质
+    <asset>           <!-- 阴影，天空和地面材质 -->
       <texture type="skybox" builtin="gradient" rgb1=".3 .5 .7" rgb2="0 0 0" width="32" height="512"/>
       <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1=".1 .2 .3" rgb2=".2 .3 .4"/>
       <!-- <texture name="grid" type="2d" builtin="checker" width="512" height="512" rgb1="0 0 0" rgb2="0 0 0"/> -->
       <material name="grid" texture="grid" texrepeat="2 2" texuniform="true" reflectance="0"/>
     </asset>
-    <worldbody>       #创建场景
+    <worldbody>       <!-- 创建场景 -->
       <camera name="front" pos="1.3 0.0 0.7" quat="0.5963678 0.3799282 0.3799282 0.5963678" fovy="45"/>
       <light pos="0 0 3" dir="0 0 -1" diffuse="1 1 1" specular=".3 .3 .3"/>
       <light pos="0 -.5 .4" mode="targetbodycom" target="block1" diffuse=".8 .8 .8" specular=".3 .3 .3"/>
@@ -108,4 +108,4 @@
     </sensor>
   </mujoco>
 
-#还设置了创建可移动方块，创建目标标记，
+<!-- 还设置了创建可移动方块，创建目标标记， -->

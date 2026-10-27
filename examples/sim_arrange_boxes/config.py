@@ -27,7 +27,8 @@ ARRANGE_BOXES_XML = (Path(__file__).resolve().parents[2]/ "platform"/ "assets"/ 
 class EnvConfig(RobotSimEnvConfig):
     """ArrangeBoxes 任务的底层环境配置"""
 
-    max_episode_length = 1000
+    use_images = True
+    max_episode_length = 2000
 
     home_position = np.asarray([0.0, -0.785, 0.0, -2.35, 0.0, 1.57, np.pi / 4], dtype=np.float64)
     pose_limit_low = np.asarray([0.2, -0.5, 0.0, -np.pi, -np.pi, -np.pi],       dtype=np.float64)
@@ -41,7 +42,7 @@ class EnvConfig(RobotSimEnvConfig):
     block_xy_low = np.asarray([-0.05, -0.50], dtype=np.float64)
     block_xy_high = np.asarray([0.85, 0.50], dtype=np.float64)
 
-    success_distance = 0.03
+    success_distance = 0.06
     distance_reward_scale = 20.0
 
 

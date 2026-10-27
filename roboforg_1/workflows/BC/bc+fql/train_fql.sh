@@ -5,10 +5,10 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 cd "$PROJECT_ROOT"
 
 # ------------------------- 任务与数据 ------------------------- #
-TASK_NAME=pick                             # 任务名称, 对应 examples/mappings.py 中的环境映射
+TASK_NAME=sim_arrange_boxes                             # 任务名称, 对应 examples/mappings.py 中的环境映射
 DATASET_ROOT=datasets                      # 数据集根目录
-TRAIN_DIR_NAME=train_1                       # 训练数据子目录, 路径为 数据集根目录/任务/子目录
-EVAL_DIR_NAME=eval_1                         # 保留的评估数据目录配置, 当前周期评估使用环境 rollout
+TRAIN_DIR_NAME=train_1                      # 训练数据子目录, 路径为 数据集根目录/任务/子目录
+EVAL_DIR_NAME=eval_1                        # 保留的评估数据目录配置, 当前周期评估使用环境 rollout
 CAMERA_KEYS=front,wrist                    # 输入相机名称及顺序, 多路相机用逗号分隔
 BATCH_SIZE=32                                     # 每次参数更新采样的完整动作块数量
 OBSERVATION_HORIZON=1                      # 观测历史长度 T, 包含当前帧
@@ -36,7 +36,7 @@ ALPHA=100.0                                # Actor 蒸馏损失权重, 总损失
 Q_AGGREGATION=mean                         # Q head 聚合方式, mean 取均值或 min 取最小值
 
 # ------------------------- 训练与 checkpoint ------------------------- #
-NUM_EPOCHS=700                                      # 目标总轮数, 包含续训前已完成轮数
+NUM_EPOCHS=400                                     # 目标总轮数, 包含续训前已完成轮数
 STEPS_PER_EPOCH=""                         # 每轮随机更新次数, 留空自动计算或沿用续训记录
 SEED=""                                    # 随机种子, 留空时新训练默认 0, 续训使用保存值
 DEVICE=auto                                # 计算设备, auto 自动选择, 也可指定 cpu 或 gpu
@@ -46,11 +46,11 @@ CHECKPOINT_EVERY_EPOCHS=100                # 每隔多少轮保存完整训练�
 CHECKPOINT_KEEP=2                          # 仅保留最近多少个 checkpoint, 保存成功后删除旧文件
 
 # ------------------------- 统一评估 ------------------------- #
-EVAL_EVERY_EPOCHS=100                      # 训练期间每隔多少轮评估, 0 关闭周期评估
-NUM_EVAL_EPISODES=40                       # 每次训练期间评估的回合数
+EVAL_EVERY_EPOCHS=100                             # 训练期间每隔多少轮评估, 0 关闭周期评估
+NUM_EVAL_EPISODES=100                              # 每次训练期间评估的回合数
 FINAL_EVAL=true                                    # 最后一轮是否评估, 独立于周期评估间隔
 SHOW_VIEWER=false                          # 训练期间评估是否打开仿真窗口
-PRINT_POLICY_OUTPUT=false                  # 训练期间评估是否打印每步发送给环境的动作
+PRINT_POLICY_OUTPUT=false                  # 兼容旧参数; 训练内评估不打印动作, 查看动作请独立启动评估
 
 # ------------------------- W&B ------------------------- #
 WANDB=true                                 # 是否启用 W&B 指标记录和上传

@@ -6,6 +6,7 @@ from dataclasses import asdict, fields
 from datetime import datetime
 from importlib import import_module
 import math
+import os
 from pathlib import Path
 import time
 from typing import Any
@@ -19,6 +20,27 @@ from roboforg_1.utils.checkpoint_untils import create_run_dir, load_run_config, 
 _common = import_module(f"{__package__}.common")
 _eval = import_module(f"{__package__}.eval_fql")
 FQLWorkflowConfig = _common.FQLWorkflowConfig
+
+
+class _TrainingProgress:
+    """同一行显示累计 epoch 进度, 测评或退出前结束当前行."""
+
+    def __init__(self, total: int):
+        self.total = total
+        self.active = False
+
+    def show(self, completed: int) -> None:
+        width = 30
+        filled = completed * width // self.total
+        # 最后一格只在全部训练完成后填满.
+        bar = "#" * filled + " " * (width - filled)
+        print(f"\r训练 {completed}/{self.total} [{bar}]", end="", flush=True)
+        self.active = True
+
+    def pause(self) -> None:
+        if self.active:
+            print(flush=True)
+            self.active = False
 
 
 """------------------------- 配置与启动参数 -------------------------"""
@@ -43,7 +65,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-eval-episodes", type=int, default=40)
     parser.add_argument("--final-eval", choices=("true", "false"), default="true")
     parser.add_argument("--show-viewer", choices=("true", "false"), default="false")
-    parser.add_argument("--print-policy-output", choices=("true", "false"), default="false")
+    parser.add_argument("--print-policy-output", choices=("true", "false"), default="false", help="Compatibility option; training evaluation always suppresses action output. Use standalone evaluation to print actions.")
     parser.add_argument("--max-eval-episode-steps", type=int, default=None)
     parser.add_argument("--wandb", choices=("true", "false"), default="true")
     parser.add_argument("--wandb-debug", choices=("true", "false"), default="false")
@@ -167,15 +189,23 @@ def run_training(args: argparse.Namespace) -> Path:
     save_run_config(log_dir, run_config)
     logger = None
     if args.wandb == "true":
+        # 保留平台日志与上传, 隐藏 W&B 的常规终端提示.
+        os.environ.setdefault("WANDB_SILENT", "true")
         from roboforg_1.utils.wandb import make_wandb_logger
         variant = {"config": {key: str(value) if isinstance(value, Path) else value for key, value in asdict(config).items()}, "seed": seed, "steps_per_epoch": steps_per_epoch}
         logger = make_wandb_logger(project=args.wandb_project, entity=args.wandb_entity, description="fql", variant=variant, wandb_output_dir=log_dir, run_name=args.wandb_name or log_dir.name, run_id=uuid4().hex, debug=args.wandb_debug == "true")
+    progress = _TrainingProgress(args.num_epochs)
+    evaluation_count = 0
     try:
         if logger is not None:
             logger.run.define_metric("train_step", hidden=True)
             for name in ("train/*", "epoch/*", "evaluation/*"):
                 logger.run.define_metric(name, step_metric="train_step")
-        print(f"FQL training: directory={run_dir}, complete_chunks={complete_chunks}, steps_per_epoch={steps_per_epoch}, start_epoch={start_epoch}", flush=True)
+            if not logger.run.disabled and not logger.run.offline:
+                run_url = logger.run.url
+                if run_url:
+                    print(f"W&B 训练曲线: {run_url}", flush=True)
+        progress.show(start_epoch)
         for epoch in range(start_epoch, args.num_epochs):
             started = time.perf_counter()
             agent, metrics = train_epoch(agent, sampler, config, epoch=epoch, steps_per_epoch=steps_per_epoch, seed=seed, logger=logger, log_every=args.wandb_log_every)
@@ -183,19 +213,28 @@ def run_training(args: argparse.Namespace) -> Path:
             summary = {"train_step": step, "epoch/completed": completed, "epoch/seconds": time.perf_counter() - started, **{f"epoch/{key}": value for key, value in metrics.items()}}
             if logger is not None:
                 logger.log(summary)
-            print(f"epoch={completed} step={step} metrics={metrics}", flush=True)
+            progress.show(completed)
 
             # 保存先于评估, 即使仿真评估失败也保留本轮训练状态.
             final_epoch = completed == args.num_epochs
             if completed % args.checkpoint_every_epochs == 0 or final_epoch:
-                path = save_training_checkpoint(run_dir, agent, config, observations, epoch=epoch, metrics=metrics, keep=args.checkpoint_keep, logger=logger, upload_artifact=args.upload_checkpoint_artifact == "true", runtime={"seed": seed, "steps_per_epoch": steps_per_epoch})
-                print(f"Saved checkpoint: {path}", flush=True)
+                save_training_checkpoint(run_dir, agent, config, observations, epoch=epoch, metrics=metrics, keep=args.checkpoint_keep, logger=logger, upload_artifact=args.upload_checkpoint_artifact == "true", runtime={"seed": seed, "steps_per_epoch": steps_per_epoch})
             if (not final_epoch and args.eval_every_epochs > 0 and completed % args.eval_every_epochs == 0) or (final_epoch and args.final_eval == "true"):
-                results = _eval.evaluate_policy(agent, config, num_episodes=args.num_eval_episodes, seed=seed + completed, show_viewer=args.show_viewer == "true", print_policy_output=args.print_policy_output == "true", max_episode_steps=args.max_eval_episode_steps)
+                progress.pause()
+                evaluation_count += 1
+                print(f"第 {evaluation_count} 次测评 | 进行中...", end="", flush=True)
+                try:
+                    results = _eval.evaluate_policy(agent, config, num_episodes=args.num_eval_episodes, seed=seed + completed, show_viewer=args.show_viewer == "true", max_episode_steps=args.max_eval_episode_steps, verbose=False)
+                except BaseException:
+                    print(flush=True)
+                    raise
+                print(f"\r第 {evaluation_count} 次测评 | 成功率: {results['success_rate']:.1%}", flush=True)
                 if logger is not None:
                     logger.log({"train_step": step, **{f"evaluation/{key}": value for key, value in results.items()}})
-                print(f"Evaluation after epoch {completed}: {results}", flush=True)
+                if not final_epoch:
+                    progress.show(completed)
     finally:
+        progress.pause()
         if logger is not None:
             logger.finish()
     return run_dir

@@ -434,7 +434,7 @@ class GamepadController(InputController):
         return max(0.0, (value - self.deadzone) / (1.0 - self.deadzone))
 
     def get_rotation_deltas(self):
-        """输出夹爪局部旋转：右 +X、上 +Y、LB +Z、RB -Z。
+        """输出夹爪局部旋转：右杆右推为 +X、上推为 -Y；肩键控制 Z 轴。
 
         右杆四个 60 度扇区之间留空；径向死区外线性增速。
         肩键独立工作，允许与右杆组合；最终由包装器缩放及限制模长。
@@ -454,9 +454,9 @@ class GamepadController(InputController):
                 elif abs(abs(angle) - 180.0) <= self.sector_half_angle:
                     rx = -magnitude
                 elif abs(angle - 90.0) <= self.sector_half_angle:
-                    ry = magnitude
-                elif abs(angle + 90.0) <= self.sector_half_angle:
                     ry = -magnitude
+                elif abs(angle + 90.0) <= self.sector_half_angle:
+                    ry = magnitude
             buttons = self.controller_config.get("buttons", {})
             rz = float(self.joystick.get_button(buttons.get("rb", 5))) - float(
                 self.joystick.get_button(buttons.get("lb", 4))

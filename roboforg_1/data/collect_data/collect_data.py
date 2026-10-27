@@ -1,4 +1,4 @@
-"""Collect compact, successful human demonstrations for the Pick task.
+"""Collect compact, successful human demonstrations for a configured task.
 
 Each saved trajectory contains observations ``obs_0 ... obs_T`` and executed
 actions ``action_0 ... action_(T-1)``.  Keeping the terminal observation once
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import importlib
 import pickle
 import sys
 import time
@@ -27,7 +28,11 @@ for import_root in (PROJECT_ROOT, PLATFORM_ROOT):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from examples.sim_pick.config import TrainConfig
+# 任务名同时用于选择环境配置和数据集目录；新增任务时在这里注册。
+TASK_CONFIGS = {
+    "pick": ("examples.sim_pick.config", "TrainConfig"),
+    "sim_arrange_boxes": ("examples.sim_arrange_boxes.config", "ArrangeBoxesTaskConfig"),
+}
 from roboforg_1.data.observation import canonicalize_observation
 
 
@@ -233,17 +238,17 @@ def collect_demonstrations(
 
 
 def _save_dataset(*, trajectories: list[dict[str, Any]], statistics: dict[str, int],
-                  split: str, output_root: Path, output_dir_name: str) -> Path:
+                  split: str, output_root: Path, output_dir_name: str, task: str = "pick") -> Path:
     """Write a single session file shared by future ACT and Diffusion Policy loaders."""
     # train/eval 仅通过目录隔离；二者的数据格式完全相同，可供 ACT 和 DP 共用。
-    output_dir = output_root / "pick" / output_dir_name
+    output_dir = output_root / task / output_dir_name
     output_dir.mkdir(parents=True, exist_ok=True)
     timestamp = dt.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    output_path = output_dir / f"pick_{len(trajectories)}_demos_{timestamp}.pkl"
+    output_path = output_dir / f"{task}_{len(trajectories)}_demos_{timestamp}.pkl"
     # 一个 pkl 保存本次采集的全部成功轨迹，而非每条轨迹产生一个小文件。
     payload = {
         "format_version": 1,
-        "task": "pick",
+        "task": task,
         "split": split,
         "statistics": statistics,
         "trajectories": trajectories,
@@ -254,11 +259,13 @@ def _save_dataset(*, trajectories: list[dict[str, Any]], statistics: dict[str, i
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Collect successful human Pick demonstrations.")
+    parser = argparse.ArgumentParser(description="Collect successful human demonstrations for the selected task.")
+    parser.add_argument("--task", choices=tuple(TASK_CONFIGS), default="pick",
+                        help="Task configuration and dataset directory name.")
     parser.add_argument("--successes-needed", type=int, default=10, help="Successful trajectories to put in this one file.")
     parser.add_argument("--split", choices=("train", "eval"), default="train")
     parser.add_argument("--output-dir-name", type=str,
-                        help="Folder under datasets/pick; defaults to the split name.")
+                        help="Folder under datasets/<task>; defaults to the split name.")
     parser.add_argument(
         "--input-device",
         choices=("keyboard", "gamepad", "spacemouse"),
@@ -276,10 +283,11 @@ def main() -> None:
         parser.error("--start-motion-threshold must be finite and non-negative.")
     output_dir_name = args.output_dir_name or args.split
     if output_dir_name in {".", ".."} or Path(output_dir_name).name != output_dir_name:
-        parser.error("--output-dir-name must name one folder under datasets/pick.")
+        parser.error("--output-dir-name must name one folder under datasets/<task>.")
 
     # 收集阶段始终使用可视化窗口和人工输入设备，不创建 fake_env。
-    config = TrainConfig()
+    module_name, config_name = TASK_CONFIGS[args.task]
+    config = getattr(importlib.import_module(module_name), config_name)()
     if args.input_device is not None:
         config.input_device = args.input_device
     config.show_viewer = True
@@ -305,6 +313,7 @@ def main() -> None:
         split=args.split,
         output_root=args.output_root,
         output_dir_name=output_dir_name,
+        task=args.task,
     )
     print("statistics:", statistics)
     print("saved:", output_path)
